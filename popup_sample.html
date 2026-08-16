@@ -1,0 +1,520 @@
+
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<title>관세법령정보포털 CLIP</title>
+	
+	
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="description" content="관세청 4세대 국가관세종합정보망">
+<meta name="keywords" content="Korea Customs, kcs4g">
+<meta name="author" content="LG CNS 컨소시엄 All rights reserved">
+
+<script type="text/javascript">
+var ULSCOMMON_MSG = {
+      err_all_00003 : '{0}은(는) 날짜 유형이 아닙니다.' // {0} 은(는) 날짜 유형이 아닙니다.
+    , err_all_00009 : '{0} is not a valid value.' // {0}은(는) 유효하지 않은 값입니다.
+    , err_all_00012 : '{0}은(는) {1}자 이상 입력할 수 없습니다.' // {0}은(는) {1}자 이상 입력할 수 없습니다.
+    , err_all_00014 : '{0}은(는) {1}과 {2} 사이의 값이어야 합니다.' // {0}은(는) {1}과 {2} 사이의 값이어야 합니다.
+    , err_all_00015 : '{0} is Mandatory' // {0} 은(는) 필수 입력값입니다.
+    , err_all_00020 : '로그인해 주세요.' // 로그인해 주십시오.
+    , err_all_00021 : '{0}은(는) 이미 존재합니다.' // {0} 은(는) 이미 존재합니다.
+    , err_all_00023 : '{0} 입력이 잘못되었습니다. 다시 확인 후 저장하십시오.' // {0} 입력이 잘못되었습니다. 다시 확인 후 저장하십시오.
+    , err_all_00026 : '{0}은(는) {1}자 이상 입력해야 합니다.' // {0} 은(는) {1}자 이상 입력해야 합니다.
+    , err_all_00034 : '삭제할 항목을 선택하십시오.' // 삭제할 항목을 선택하십시오.
+    , err_all_00045 : '{0}을(를) 선택하십시오.' // {0} 을(를) 선택하십시오.
+    , err_all_00046 : '{0}할 대상을 선택하십시오.' // {0}할 대상을 선택하십시오.
+    , err_all_00054 : '엑셀 파일을 선택하십시오.' // 엑셀 파일을 선택하십시오.
+    , err_all_00055 : '엑셀 파일만 등록 가능합니다.' // 엑셀 파일만 등록 가능합니다.
+    , err_all_00065 : '저장된 PDF 파일이 존재하지 않습니다.' // 저장된 PDF 파일이 존재하지 않습니다.
+    , err_all_00067 : '저장할 파일이 존재하지 않습니다.' // 저장할 파일이 존재하지 않습니다.
+    , err_all_00070 : '{0} E-mail 정보가 없어 E-mail을 전송할 수 없습니다.' // {0} E-mail 정보가 없어 E-mail을 전송할 수 없습니다.
+    , err_all_00091 : '날짜를 잘못 입력하였습니다. 다시 입력해 주십시오.' // 날짜를 잘못 입력하였습니다. 다시 입력해 주십시오.
+    , err_all_00093 : '{0}의 날짜형식을 확인하십시오.' // {0}의 날짜형식을 확인하십시오.
+    , err_all_00097 : '{0} 날짜는 현재일 이전 날짜만 가능합니다.' // {0} 날짜는 현재일 이전 날짜만 가능합니다.
+    , err_all_00101 : '{0} 시작일이 종료일보다 미래입니다. 확인 바랍니다.' // {0} 시작일이 종료일보다 미래입니다. 확인바랍니다.
+    , err_all_00103 : '{0} 번호가 중복 입력되었습니다.' // {0} 번호가 중복 입력되었습니다.
+    , err_all_00139 : '{0}을(를) 입력하십시오.' // {0} 을(를) 입력하십시오.
+    , err_all_00142 : '{0}은(는) 중복 입력되었습니다.' // {0}은(는) 중복 입력되었습니다.
+    , err_all_00160 : '{0} 정보가 존재하지 않습니다.' // {0} 정보가 존재하지 않습니다.
+    , err_all_00161 : '{0} 대상이 아닙니다.' // {0} 대상이 아닙니다.
+    , err_all_00166 : 'Duplicate {0}' // 동일한 {0}가 존재합니다.    
+    , err_all_00173 : '저장할 항목을 선택하십시오.' // 저장할 항목을 선택하십시오.
+    , err_all_00220 : '{0}은(는) {1}보다 이전이어야 합니다.' // {0} 은(는) {1}보다 이전이어야 합니다.
+    , err_all_00228 : '{0}이(가) 발송되지 않았습니다. 다시 발송해 주시기 바랍니다' // {0}이(가) 발송되지 않았습니다. 다시 발송해 주시기 바랍니다
+    , err_all_00268 : '{0} exceeds maximum {1}' // {0}은(는) 최대 {1} 건까지 등록 가능합니다
+    , err_all_00375 : '{0}이(가) 존재하지 않습니다.' // {0}이(가) 존재하지 않습니다.
+
+    , err_all_00263 : '{0}은(는) {1}보다 이후이어야 합니다.' // {0}은(는) {1}보다 이후이어야 합니다.
+    , err_all_00292 : '엑셀 2007버전(xlsx) 이상 파일만 등록 가능합니다.' // 엑셀 2007버전(xlsx) 이상 파일만 등록 가능합니다.
+    , err_all_00310 : '{0}인 경우 {1}은(는) 필수 입력값입니다.' // {0}인 경우 {1}은(는) 필수 입력값입니다.
+    , err_all_00326 : '{0} 등록 중이므로 {1}할 수 없습니다.' // {0} 등록 중이므로 {1}할 수 없습니다.
+    , err_all_00332 : '변경된 내용이 없습니다.' // 변경된 내용이 없습니다.
+    , err_all_00408 : '이미 {0}되어 {1}할 수 없습니다.' // 이미 {0}되어 {1}할 수 없습니다.
+    , err_all_00414 : '{0} 경우 {1}을(를) 처리할 수 없습니다.' // {0} 경우 {1}을(를) 처리할 수 없습니다.
+    , err_all_00479 : '첨부파일이 존재하지 않습니다.' // 첨부파일이 존재하지 않습니다.
+    
+    , cfm_all_00002 : '{0}을(를) 저장하시겠습니까?' // 삭제하시겠습니까?
+    , cfm_all_00004 : '삭제하시겠습니까?' // 삭제하시겠습니까?
+    , cfm_all_00005 : '{0}을(를) 삭제하시겠습니까?' // {0} 을(를) 삭제하시겠습니까?
+    , cfm_all_00014 : '엑셀 파일로 다운받으시겠습니까?' // 엑셀 파일로 다운받으시겠습니까?
+    , cfm_all_00015 : '엑셀 파일을 업로드하시겠습니까?' // 엑셀 파일을 업로드하시겠습니까?
+    , cfm_all_00023 : '{0} 처리하시겠습니까?' // {0} 처리하시겠습니까?
+    , cfm_all_00029 : '결재 의뢰를 취소하시겠습니까?' // 결재 의뢰를 취소하시겠습니까?
+    , cfm_all_00030 : '결재 처리하시겠습니까?' // 결재 처리하시겠습니까?
+    , cfm_all_00033 : '{0}을(를) 반려하시겠습니까?' // {0}을(를) 반려하시겠습니까?
+    , cfm_all_00037 : '{0}을(를) 적용하시겠습니까?' // {0}을(를) 적용하시겠습니까?
+    , cfm_all_00039 : '{0}을(를) 전송하시겠습니까?' // {0}을(를) 전송하시겠습니까?
+    , cfm_all_00042 : '{0} 신청하시겠습니까?' // {0} 신청하시겠습니까?
+    , cfm_all_00045 : '전결하시겠습니까?' // 전결하시겠습니까?
+    , cfm_all_00059 : '{0}을(를) 요청하시겠습니까?' // {0}을(를) 요청하시겠습니까?
+        
+    , inf_all_00003 : '정상적으로 저장되었습니다.' // 정상적으로 저장되었습니다.
+    , inf_all_00004 : '수정사항이 저장되었습니다.' // 수정사항이 저장되었습니다.
+    , inf_all_00006 : '{0} 건이 저장되었습니다.' // {0} 건이 저장되었습니다.
+    , inf_all_00008 : '정상적으로 삭제되었습니다.' // 정상적으로 삭제되었습니다.
+    , inf_all_00009 : '{0}을(를) 삭제하였습니다.' // {0} 을(를) 삭제하였습니다.
+    , inf_all_00012 : '승인되었습니다.' // 승인되었습니다.
+    , inf_all_00024 : 'E-mail 발송되었습니다.' // E-mail 발송되었습니다.
+    , inf_all_00026 : '{0}이(가) 정상적으로 완료되었습니다.' // {0}이(가) 정상적으로 완료되었습니다.
+    , inf_all_00027 : '정상적으로 처리되었습니다.' // 정상적으로 처리되었습니다.
+    , inf_all_00031 : '{0}이(가) 저장되었습니다.' // 삭제 가능한 자료가 존재하지 않습니다.
+    , inf_all_00032 : '결재의뢰 되었습니다.' // 결재의뢰되었습니다.
+    , inf_all_00033 : '결재되었습니다.' // 결재되었습니다.
+    , inf_all_00035 : '반려되었습니다.' // 반려되었습니다.
+    , inf_all_00038 : 'There were no results found.' // 조회결과가 존재하지 않습니다.
+    , inf_all_00055 : '{0}이(가) 취소되었습니다.' // {0}이(가) 취소되었습니다.
+    , inf_all_00056 : '취소되었습니다.' // 취소되었습니다.
+
+    , sys_all_00001 : '저장되지 않았습니다. 관리자에게 문의하십시오.' // 저장되지 않았습니다. 관리자에게 문의하십시오.
+    , sys_all_00002 : '삭제되지 않았습니다. 관리자에게 문의하십시오.' // 삭제되지 않았습니다. 관리자에게 문의하십시오.
+    , sys_all_00003 : '오류가 발생하였습니다. 관리자에게 문의하십시오.' // 오류가 발생하였습니다. 관리자에게 문의하십시오.
+    , sys_all_00014 : '반려 중 오류가 발생하였습니다.' // 반려 중 오류가 발생하였습니다.
+
+    , err_uls_00001 : '선택하신 법령정보를 조회할 수 없습니다.' // 선택하신 법령정보를 조회할 수 없습니다.
+    , err_uls_00002 : '비교 검색 후 선택하십시오.' // 비교 검색 후 선택하십시오.
+    , err_uls_00003 : '{0}은(는) {1} 단위 이상 입력해야 합니다.' // {0} 은(는) {1} 단위 이상 입력해야 합니다.
+    , err_uls_00004 : '음수는 입력할 수 없습니다.' // 음수는 입력할 수 없습니다.
+    , err_cag_01129 : '{0} 가능합니다.' // {0} 가능합니다.
+    
+    , errors_bytemaxlength : '{0}은(는) 최대 {1}bytes를 넘을 수 없습니다.' // {0}은(는) 최대 {1}bytes를 넘을 수 없습니다.
+};
+</script>
+<script type="text/JavaScript">
+var COMMON_MSG = {
+        lab_all_00001 : "상단영역",  //상단영역
+        lab_all_00002 : "전체보기",  //전체보기/모두보기
+        lab_all_00003 : "더보기",  //더보기
+        lab_all_00004 : "전체접기",  //전체접기/모두접기
+        lab_all_00005 : "접기",  //접기
+        lab_all_00006 : "처리중",  //처리중
+        lab_all_00007 : "관련정보",  //관련정보
+        lab_all_00008 : "첫",  //첫
+        lab_all_00009 : "마지막",  //마지막
+        lab_all_00010 : "페이지",  //페이지
+        lab_all_00011 : "다음",  //다음
+        lab_all_00012 : "이전",  //이전
+        inf_all_00037 : "조회조건을 선택하십시오.",  //조회조건을 선택해 주세요
+        inf_all_00038 : "There were no results found.",  //조회결과가 존재하지 않습니다.
+        inf_all_00085 : "최상단입니다.",  //최상단입니다.
+        inf_all_00086 : "최하단입니다.",  //최하단입니다.
+        inf_all_00096 : "엑셀 다운로드 시 {0}건까지 표시됩니다.",   //엑셀 다운로드 시 10,000건까지 표시됩니다.
+        sys_all_00003 : "오류가 발생하였습니다. 관리자에게 문의하십시오.",   //오류가 발생하였습니다. 관리자에게 문의하십시오.
+        
+        
+        inf_all_00001 : "로그인 되었습니다.",  //로그인 되었습니다.
+        inf_all_00002 : "로그아웃 되었습니다.",  //로그아웃 되었습니다.       
+        err_all_00018 : "아이디 혹은 비밀빈호를 확인 하세요.",  //아이디 혹은 비밀빈호를 확인하십시오.
+        err_all_00020 : "로그인해 주세요.",  //로그인해 주십시오.
+        err_all_00030 : "이미 로그아웃 되었습니다.",  //이미 로그아웃 되었습니다.
+		
+        err_all_00062 : "저장된 파일이 존재하지 않습니다.",	// 저장된 파일이 존재하지 않습니다.
+        err_all_00396 : "요청하신 URL은 정상적인 접근이 아닙니다.",  //요청하신 URL은 정상적인 접근이 아닙니다.
+        err_all_00397 : "{0}서버에 장애가 발생하였습니다.\n관리자에게 문의하십시오.",  //{0}서버에 장애가 발생하였습니다.\n관리자에게 문의하십시오.
+        err_all_00398 : "{0}서버에 알 수 없는 에러가 발생하였습니다.\n관리자에게 문의하십시오.",  //{0}서버에 알 수 없는 에러가 발생하였습니다.\n관리자에게 문의하십시오.
+        err_all_00399 : "비정상적으로 접근하였습니다.",  //비정상적으로 접근하였습니다.
+        err_all_00400 : "서비스 연계에 실패하였습니다.\n관리자에게 문의하십시오.\n(비상로그인 시 타 대기능 화면/팝업은 지원하지 않습니다.)",  //SSO 사용자인증에 실패하였습니다.\n관리자에게 문의하십시오.\n(비상로그인 시 타 대기능 화면/팝업은 지원하지 않습니다.)
+        err_all_00139 : "{0}을(를) 입력하십시오.",  //{0} 을(를) 입력하십시오.
+        err_all_00254 : "{0} 권한이 없습니다.",  //{0} 권한이 없습니다.
+        
+        err_all_00251 : "등록된 {0}이(가) 존재하지 않습니다.",  //등록된 {0}이(가) 존재하지 않습니다.
+        err_all_00253 : "{0}은(는) 저장할 수 없습니다.",  //{0}은(는) 저장할 수 없습니다.
+        inf_all_00098 : "multiselect 옵션을 true로 설정하여야 합니다.",  //multiselect 옵션을 true로 설정하여야 합니다.
+        inf_all_00099 : "브라우저에 팝업 차단 설정이 되어있습니다.",  //브라우저에 팝업 차단 설정이 되어있습니다.
+        
+        err_all_00091 : "날짜를 잘못 입력하였습니다. 다시 입력해 주십시오.",  // 날짜를 잘못 입력하였습니다. 다시 입력해 주십시오.
+		err_aeo_00024 : "업로드할 수 없는 파일 형식입니다.\n업로드 허용 파일 [{0}]",  // 업로드할 수 없는 파일 형식입니다.\n업로드 허용 파일 [{0}]
+	    err_all_00352 : "{0}을(를) 처리 중 오류가 발생하였습니다. 관리자에게 문의하십시오.",  // {0}을(를) 처리 중 오류가 발생하였습니다. 관리자에게 문의하십시오.
+		err_all_00023 : "{0} 입력이 잘못되었습니다. 다시 확인 후 저장하십시오.",  // {0} 입력이 잘못되었습니다. 다시 확인 후 저장하십시오.
+		err_all_00371 : "조회 시간이 경과했습니다. 나중에 재조회하시기 바랍니다.",  // 조회 시간이 경과했습니다. 나중에 재조회하시기 바랍니다.
+		
+		cfm_all_00002 : "{0}을(를) 저장하시겠습니까?",  // {0} 을(를) 저장하시겠습니까?
+		cfm_all_00005 : "{0}을(를) 삭제하시겠습니까?",  // {0} 을(를) 삭제하시겠습니까?
+		
+		err_all_00469 : "검색어를 입력하십시오.",  // 검색어를 입력하십시오.	
+		err_all_00470 : "연결할 URL정보가 없습니다.",  // 연결할 URL정보가 없습니다.	
+		err_all_00471 : "연결할 서버정보를 확인할 수 없습니다.",  // 연결할 서버정보를 확인할 수 없습니다.		
+		err_all_00472 : "링크 준비중 입니다.",  // 링크 준비중 입니다.
+				
+
+	    inf_all_00119 : "최근 접속IP : {0}\n최근 로그인 : {1}",  // 최근 접속IP  : {0}\n최근 로그인 : {1}
+	    inf_all_00120 : "최초 접속IP : {0}\n최초 로그인 : {1}",  // 최초 접속IP  : {0}\n최초 로그인 : {1}
+	    err_all_00473 : "화면정보를 확인할 수 없습니다.",  // 화면정보를 확인할 수 없습니다.
+	    
+	    cfm_all_00004 : "삭제하시겠습니까?",  // 삭제하시겠습니까?
+        inf_all_00008 : "정상적으로 삭제되었습니다.",  // 정상적으로 삭제되었습니다.
+        inf_all_00003 : "정상적으로 저장되었습니다.",  // 정상적으로 저장되었습니다.
+        sys_all_00002 : "삭제되지 않았습니다. 관리자에게 문의하십시오.",  // 삭제되지 않았습니다. 관리자에게 문의 하세요.
+        sys_all_00001 : "저장되지 않았습니다. 관리자에게 문의하십시오.",  // 저장되지 않았습니다. 관리자에게
+				
+        kcs4gTable : {
+			ko : {
+				lab_all_00002 : "전체보기",	
+				lab_all_00003 : "더보기",	 //더보기 
+				lab_all_00004 : "전체접기",	 //전체접기/모두접기 
+				lab_all_00005 : "접기",	 //접기 
+				lab_all_00007 : "관련정보",	 //관련정보 
+				lab_all_00008 : "첫",	 //첫 
+				lab_all_00009 : "마지막",	 //마지막 
+				lab_all_00010 : "페이지",	 //페이지 
+				lab_all_00011 : "다음",	 //다음 
+				lab_all_00012 : "이전",	 //이전 
+				inf_all_00037 : "조회조건을 선택하십시오.",		//조회조건을 선택해 주세요
+				inf_all_00038 : "조회결과가 존재하지 않습니다."		//조회결과가 존재하지 않습니다. 
+			},
+			en : {
+				lab_all_00002 : "전체보기",	 //전체보기/모두보기 
+				lab_all_00003 : "더보기",	 //더보기
+				lab_all_00004 : "전체접기",	 //전체접기/모두접기 
+				lab_all_00005 : "접기",	 //접기 
+				lab_all_00007 : "관련정보",	 //관련정보 
+				lab_all_00008 : "첫",	 //첫 
+				lab_all_00009 : "마지막",	 //마지막 
+				lab_all_00010 : "페이지",	 //페이지 
+				lab_all_00011 : "다음",	 //다음 
+				lab_all_00012 : "이전",	 //이전 
+				inf_all_00037 : "조회조건을 선택하십시오.",		//조회조건을 선택해 주세요
+				inf_all_00038 : "There were no results found."		//조회결과가 존재하지 않습니다. 
+			}
+		}
+     };
+</script><!-- ECL - PDF뷰어 URL -->
+
+<script type="text/javascript">
+document.domain = 'customs.go.kr';
+var contextRoot = '/clip';
+
+//단위서버 접속정보
+var UTSYS_URL = {
+    bup : 'https://kcsp.customs.go.kr',
+    imp : 'https://kcsp.customs.go.kr:38240',
+    exp : 'https://kcsp.customs.go.kr:38210',
+    spc : 'https://kcsp.customs.go.kr:38270',
+    col : 'https://kcsp.customs.go.kr:38160',
+    ahs : 'https://kcsp.customs.go.kr:38130',
+    cag : 'https://kcsp.customs.go.kr:38150',
+    drb : 'https://kcsp.customs.go.kr:38200',
+    inv : 'https://kcsp.customs.go.kr:38250',
+    aeo : 'https://kcsp.customs.go.kr:38120',
+    fta : 'https://kcsp.customs.go.kr:38220',
+    dpt : 'https://kcsp.customs.go.kr:38190',
+    gnc : 'https://kcsp.customs.go.kr:38230',
+    crm : 'https://kcsp.customs.go.kr:38180',
+    tsc : 'https://kcsp.customs.go.kr:38280',
+    uls : 'https://kcsp.customs.go.kr:38290',
+    pca : 'https://kcsp.customs.go.kr:38260',
+    bev : 'https://kcsp.customs.go.kr:8370',
+    com : 'https://kcsp.customs.go.kr:38140',
+    ecl : 'https://kcsp.customs.go.kr:37110',
+    itm : 'https://kcsp.customs.go.kr:37120',
+    irm : 'https://kcsp.customs.go.kr:39130',
+    icm : 'https://kcsp.customs.go.kr:39120',
+    trs : 'https://kcsp.customs.go.kr:39140',
+    tis : 'https://tis.customs.go.kr:8080',
+    sam : '',
+    gsg : 'https://kcsp.customs.go.kr:37130',
+    cdw : 'https://kcsp.customs.go.kr:39110',
+    gis : 'https://kcsp.customs.go.kr:38300'
+ };
+
+//전자메뉴얼 접속정보
+var ELCTMNUL_URL = {
+ 	imp : '',
+ 	exp : '',
+ 	spc : '',
+ 	csw : '',
+ 	gnc : '',
+ 	rip : '',
+ 	car : '',
+ 	ahs : '',
+ 	com : '',
+ 	cdw : '',
+ 	trs : '',
+ 	fta : '',
+ 	drb : '',
+ 	col : '',
+ 	inv : '',
+ 	pas : '',
+ 	aeo : '',
+ 	bup : '',
+ 	myc : '',
+ 	ecl : '',
+ 	uls : '',
+ 	ul2 : '',
+ 	pca : '',
+ 	gsg : '',
+ 	bev : '',
+ 	rdd : '',
+ 	ucs : '',
+ 	bus : '',
+ 	crm : '',
+ 	tsc : '',
+ 	ira : '',
+ 	irs : '',
+ 	icm : '',
+ 	dpt : '',
+ 	tis : '',
+ 	mos : '',
+ 	itp : '',
+    its : '',
+    itr : ''
+};
+
+// PDF뷰어 URL
+var PDF_VWER_URL_1 = 'http://10.232.2.161:8102/pdf/link';	// 대민
+var PDF_VWER_URL_2 = 'http://10.232.2.161:8102/pdf/link';	// 관세행정 
+var PDF_VWER_URL_3 = 'http://10.232.2.161:8102/pdf/link';	// 관세지원1
+var PDF_VWER_URL_4 = 'http://10.232.2.161:8102/pdf/link';	// 관세지원2
+var PDF_VWER_URL_5 = 'http://10.232.2.161:8102/pdf/link';	// 정보분석
+var PDF_VWER_URL_6 = 'http://10.232.2.161:8102/pdf/link';	// 여행자
+var PDF_VWER_URL_7 = 'http://10.232.2.161:8102/pdf/link';	// 여행자민원
+
+var corsUserName = '';
+var domainGubun = 'out';
+</script>
+
+<script type="text/javascript">
+var pdfViewUrl = '/clip/dextupload/pdfFile/';
+var ssoYnFlag = 'Y';
+var serverInfo = 'P';
+</script> 
+
+<link rel="shortcut icon" href="/clip/images/favicon.ico" />
+<link rel="stylesheet" type="text/css" href="/clip/css/common/calendar/calendar.css" />
+<link rel="stylesheet" type="text/css" href="/clip/css/common/jqueryui/jquery-ui-1.10.4.custom.css" />
+<link rel="stylesheet" type="text/css" href="/clip/css/common/dynatree/ui.dynatree.css" />
+<link rel="stylesheet" type="text/css" href="/clip/js/lightbox/css/lightbox.css" />
+
+
+        <link rel="stylesheet" type="text/css" href="/clip/css/kcs4g/template.css?v=2026080512" />
+        <link rel="stylesheet" type="text/css" href="/clip/css/kcs4g/template_law.css?v=2026080512" />
+        <link rel="stylesheet" type="text/css" href="/clip/css/kul/uls_template.css?v=2026080512" />
+    
+<script type="text/javascript" src="/clip/js/common/jquery/jquery-1.10.2.min.js"></script>
+<script type="text/javascript" src="/clip/js/common/jqueryui/jquery-ui.js"></script>
+
+
+<script type="text/javascript" src="/clip/dat/fusionCharts/fusioncharts.js"></script>
+<script type="text/javascript" src="/clip/dat/fusionCharts/fusioncharts.charts.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/jquery.jsPlumb-1.4.0-all.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/jquery.form.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/form2Object.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/jquery.blockUI.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/jquery.mask.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/jquery.slimscroll.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/jquery.validate.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/jquery.tipsy.js"></script>
+<script type="text/javascript" src="/clip/js/common/calendar/moment.js"></script> 
+<script type="text/javascript" src="/clip/js/common/calendar/jquery.daterangepicker.js"></script>
+<script type="text/javascript" src="/clip/js/common/calendar/jquery.monthpicker.js"></script>
+<script type="text/javascript" src="/clip/js/common/template/jquery.tmpl.min.js"></script>
+<script type="text/javascript" src="/clip/js/common/dynatree/jquery.dynatree.js"></script>
+
+<script type="text/javascript" src="/clip/js/kcs4g/kcs4g_js_common.js?v=2026080512" ></script>
+<script type="text/javascript" src="/clip/js/kcs4g/kcs4g_pn_common.js"></script>
+<script type="text/javascript" src="/clip/js/kcs4g/kcs4g_table_common.js"></script>
+
+<script type="text/javascript" src="/clip/js/kcs4g/comlib_common.js"></script>
+<script type="text/javascript" src="/clip/js/kcs4g/auto_resize.js"></script>
+
+<script type="text/javascript" src="/clip/js/kcs4g/template.js"></script>
+
+ 
+<script type="text/javascript" src="/clip/js/kcs4g/kcs4g_notice.js"></script>
+
+
+<script type="text/javascript" src="/clip/js/common/colResizable/colResizable-1.3.customize.js"></script>
+ 
+<script type="text/javascript" src="/clip/js/kcs4g/kcs4g_ajax.js"></script>
+
+<!-- html5 shim and respond.js ie8 support of html5 elements and media queries --><!--[if lt IE 9]>
+    <script type="text/javascript" src="/clip/js/common/html5/html5.js"></script>
+<![endif]-->
+
+<script type="text/javascript" src="/clip/js/kcs4g/template_law.js"></script>
+<script type="text/javascript" src="/clip/js/common/jqgrid/plugin/jquery.tablednd.js"></script>
+<script type="text/javascript" src="/clip/js/common/jquery-plugins/jquery.highlight-4.js"></script>
+
+<script type="text/javascript" src="/clip/namoedit/js/namo_scripteditor.js"></script>
+
+<script type="text/javascript" src="/clip/js/kul/comn/ULSAttchFile.js"></script>
+ <!-- 테스트 기간동안 주석
+
+		<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=43bc72e553da852c09e30b9b057e7971&libraries=services"></script>
+	
+ -->
+<script type="text/javascript" src="/clip/js/kul/uls_js_common.js?v=2026080512" /></script>
+<script type="text/javascript" src="/clip/js/kul/uls_pn_common.js"></script>
+<script type="text/javascript" src="/clip/js/kul/uls_js_validation.js"></script>
+
+
+<script type="text/javascript" src="/clip/js/kul/uls_template.js"></script>
+<script type="text/javascript">
+prgm_id = "ULS0203003S";
+</script> 
+
+<script type="text/javascript" src="/clip/js/kul//prlstclsfsrch/ULS0203003S.js"></script><!-- 프로그램ID가 잘못 매핑되는 현상을 방지 -->
+<script type="text/javascript">
+    // 결함등록
+    prgm_id = "ULS0203003S";    
+</script>
+<!-- 관세율 국기목록 이미지 1시간 간격으로 받아오기 -->
+<img src="/clip/images/bul_nation.png?v=2026080512" style="width:0px; height:0px; display:none;">
+
+
+
+
+
+</head>
+<body id="popupbody">
+
+	
+<script type="text/javascript" src="/clip/js/lightbox/js/lightbox.js"></script>
+
+
+<script type="text/javascript">
+var contextRoot = '/clip';
+if((typeof jQuery == 'undefined') && !location.href.endsWith('/index.do')){
+	location.href = location.origin + contextRoot + '/index.do?opnurl=' + location.href.replace(location.origin + contextRoot, '');
+}
+</script>
+
+
+    <header id="mainTitArea" class="mainTitArea" style="display:none;">
+        <h1 data-scrid=""></h1>
+        
+        <aside>
+            <ul></ul>
+            
+        </aside>
+    </header>
+    <script type="text/javascript">
+        var scrninfo = '품목분류사례-대한민국(팝업)(UI-ULS-0203-003S)';
+        if($('section.popup > header > h1').is('*')) {
+            $('#mainTitArea').remove();
+            $('section.popup > header > h1').empty().html(scrninfo);
+        } else {
+            $('.mainTitArea:gt(0)').remove();
+            writeMainTitNavi(scrninfo, 'UI-ULS-0203-003S', '', '');
+            $('#mainTitArea').show();
+        }
+    </script>
+    
+<script type="text/javascript" src="/clip/js/kul/uls_template.js"></script>
+<script type="text/javascript">
+prgm_id = "ULS0203003S";
+</script> 
+
+<script type="text/javascript" src="/clip/js/kul//prlstclsfsrch/ULS0203003S.js"></script><form id="iSrchCond" name="prlstclsfsrchForm" action="/clip/prlstclsfsrch/openULS0203003S.do" method="post">
+<input type="hidden" class="savedtoken" name="ULS0203003S_F1_savedToken" value="HGI1BPG0QHROXVNFE7791VYJ7TZHUZHM" />
+<input type="hidden" class="savedtoken"  name="savedToken" value="ULS0203003S_F1_savedToken" />
+	<div class="subtitle clear">
+		<p class="check floatRight mrgnbttm5">
+			<span class="btn_abovetable">
+				<button type="button" class="btn_print"><span>인쇄</span></button>
+				
+			</span>
+		</p>
+	</div>
+	<div class="table_left table_prlstclsf">
+		<table id="ULS0203003S_T1_table1" >
+			<caption>
+				<strong>품목분류사례 상세결과</strong>
+				<p>상세결과 항목 : 참조번호, 시행일자, 시행기관, 결정세번, 품명, 물품설명, 결정사유, 이미지건수, 관련 이미지</p>
+			</caption>
+			<colgroup>
+				<col style="width:18%" />
+				<col />
+			</colgroup>
+			<tbody>
+				<tr>
+					<th scope="row">참조번호</th>
+					<td class="textLeft"></td>
+				</tr>
+				<tr>
+					<th scope="row">시행일자</th>
+					<td class="textLeft">
+						
+						<input type="hidden" name="txtEnfrDt" value=""/>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">시행기관</th>
+					<td class="textLeft"></td>
+				</tr>
+				<tr>
+					<th scope="row">결정세번</th>
+					<td class="textLeft">
+						
+						<input type="hidden" name="txtDtrmHsSgn" value=""/>
+						<button type="button" name="btnTrrtPop"><span>관세율표</span></button>
+						<button type="button" name="btnManlPop"><span>해설서</span></button>
+					</td>
+				</tr>
+				
+				<tr>
+					<th scope="row">품명</th>
+					<td class="textLeft">
+						
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">물품설명</th>
+					<td class="textLeft">
+						
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">결정사유</th>
+					<td class="textLeft">
+						
+					</td>
+				</tr>
+				<tr>
+					<th scope="row">이미지건수</th>
+					<td class="textLeft"></td>
+				</tr>
+				<tr>
+					<th scope="row">관련 이미지</th>
+					<td class="textLeft">
+						
+						<input type="hidden" id="oppbImgeFileGrpId" value="" />
+					</td>
+				</tr>
+				
+			</tbody>
+		</table>
+	</div>
+</form><!-- //popup close button area start -->
+	<footer>
+		
+		
+		<p><a href="javascript:self.close();"><span>닫기</span></a></p>
+	</footer>
+	<!-- //popup close button area end -->
+
+</body>
+</html>
