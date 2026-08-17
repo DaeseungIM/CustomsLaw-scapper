@@ -344,19 +344,19 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-100 shadow-xl space-y-6">
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 text-slate-900 shadow-sm space-y-6">
       {/* Top Banner / Intro */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-800/90 to-indigo-950/50 p-6 rounded-2xl border border-slate-700/70 relative overflow-hidden">
+      <div className="bg-gradient-to-br from-indigo-50 via-white to-slate-50 p-6 rounded-2xl border border-indigo-100/80 relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200/80 text-indigo-700 text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5" />
               <span>관세법 개정 이력 수집 엔진 (~140회 개정 대응)</span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
               대한민국 관세법 개정본 수집 & Google Sheets 저장
             </h2>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
               시행일자, 공포번호(법률 제N호), 개정구분을 콤보박스에서 선택하여 원하는 시점의 관세법 전체 조문을 수집하고 구글 스프레드시트에 저장할 수 있습니다.
             </p>
           </div>
@@ -366,7 +366,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
             <button
               onClick={handleStartSync}
               disabled={isRunning || isLoadingLawDetail}
-              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-indigo-600/30 hover:shadow-indigo-500/40 transition-all transform active:scale-98 disabled:opacity-60 cursor-pointer"
+              className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-bold text-xs sm:text-sm bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm hover:shadow transition-all disabled:opacity-60 cursor-pointer"
             >
               {isRunning ? (
                 <>
@@ -389,7 +389,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
             <button
               onClick={handleExportWhollyAmendedComparison}
               disabled={isExportingWhollyAmended || isRunning}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-500 hover:to-pink-500 text-white border border-purple-300/40 shadow-xl transition-all disabled:opacity-60 cursor-pointer col-span-1 sm:col-span-2"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-purple-600 hover:bg-purple-700 text-white shadow-sm transition-all disabled:opacity-60 cursor-pointer col-span-1 sm:col-span-2"
               title="관세법 전부개정(1967년 제1976호, 2000년 제6305호)의 시기별 조문제목 변천 매트릭스 및 직전법률 대조표 3개 시트를 구글시트로 자동 작성합니다."
             >
               {isExportingWhollyAmended ? (
@@ -400,7 +400,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
               ) : (
                 <>
                   <History className="w-4 h-4 text-purple-200" />
-                  <span>🏛️ 관세법 전부개정(1967년 제1976호, 2000년 제6305호) 조문제목 변천사 & 대조 구글시트 생성</span>
+                  <span>🏛️ 관세법 전부개정(1967년, 2000년) 조문제목 변천사 구글시트 생성</span>
                 </>
               )}
             </button>
@@ -408,7 +408,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
             <button
               onClick={handleDownloadZip}
               disabled={isDownloadingZip || isRunning}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-800 hover:bg-slate-700/80 text-amber-300 border border-amber-500/30 hover:border-amber-400/60 shadow transition-all disabled:opacity-60 cursor-pointer"
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 shadow-sm transition-all disabled:opacity-60 cursor-pointer"
               title="140개 개정자료를 개별 CSV 파일로 묶어서 ZIP 압축파일로 바로 다운로드합니다."
             >
               {isDownloadingZip ? (
@@ -418,7 +418,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
                 </>
               ) : (
                 <>
-                  <FolderArchive className="w-3.5 h-3.5 text-amber-400" />
+                  <FolderArchive className="w-3.5 h-3.5 text-amber-600" />
                   <span>📦 140개 개정자료 개별파일 (ZIP) 다운로드</span>
                 </>
               )}
@@ -427,8 +427,8 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
             <button
               onClick={() => handleExportArticle2History(false, true)}
               disabled={isExportingArticle2 || isRunning}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-gradient-to-r from-amber-600 to-emerald-600 hover:from-amber-500 hover:to-emerald-500 text-white border border-amber-300/40 shadow-lg transition-all disabled:opacity-60 cursor-pointer"
-              title="관세법 제2조(정의) 중 실제로 조문문구가 추가, 수정, 삭제된 개정본(법률 제6305호, 8833호, 10424호, 17649호, 19186호, 19924호 등)만을 자동 필터링하여 새 구글시트로 생성합니다."
+              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-all disabled:opacity-60 cursor-pointer"
+              title="관세법 제2조(정의) 중 실제로 조문문구가 추가, 수정, 삭제된 개정본만을 자동 필터링하여 새 구글시트로 생성합니다."
             >
               {isExportingArticle2 ? (
                 <>
@@ -437,37 +437,17 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
                 </>
               ) : (
                 <>
-                  <History className="w-3.5 h-3.5 text-amber-200" />
+                  <History className="w-3.5 h-3.5 text-emerald-200" />
                   <span>⭐ 제2조 "실질 문구 변경 6건" 전용 구글시트 생성</span>
                 </>
               )}
-            </button>
-
-            <button
-              onClick={() => handleExportArticle2History(true)}
-              disabled={isExportingArticle2 || isRunning}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 transition-all disabled:opacity-60 cursor-pointer"
-              title="관세법 제2조(정의) 140개 개정판의 '조문별 변경이력 목록' 메타데이터 정보만을 추출하여 새 구글시트로 생성합니다."
-            >
-              <History className="w-3.5 h-3.5 text-emerald-400" />
-              <span>📋 제2조 변경이력 목록(메타) 구글시트 생성</span>
-            </button>
-
-            <button
-              onClick={() => handleExportArticle2History(false, false)}
-              disabled={isExportingArticle2 || isRunning}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-semibold text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-all disabled:opacity-60 cursor-pointer"
-              title="관세법 제2조(정의)의 140개 전체 개정판 시기별 실제 조문 본문 전문까지 포함하여 새 구글시트로 생성합니다."
-            >
-              <Search className="w-3.5 h-3.5 text-teal-400" />
-              <span>🔍 제2조 전체 시기별 본문 포함 구글시트 생성</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Law Revision Selection Combobox Card */}
-      <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-5 space-y-3 shadow-inner">
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
         <LawRevisionCombobox
           ocKey={ocKey}
           selectedRevision={selectedRevision}
@@ -476,39 +456,39 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
         />
       </div>
 
-      {/* Current Law Data Summary Card (Synchronized with selectedRevision and lawData) */}
+      {/* Current Law Data Summary Card */}
       {(selectedRevision || lawData) && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-slate-800/60 border border-slate-800 p-3.5 rounded-xl">
-            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <Building2 className="w-3.5 h-3.5 text-indigo-400" />
+          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+              <Building2 className="w-3.5 h-3.5 text-indigo-600" />
               <span>법령명</span>
             </div>
-            <p className="text-sm font-bold text-slate-100">
+            <p className="text-sm font-bold text-slate-900">
               {selectedRevision?.lawName || lawData?.info.lawName || '관세법'}
             </p>
           </div>
 
-          <div className="bg-slate-800/60 border border-slate-800 p-3.5 rounded-xl">
-            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
               <span>시행일자</span>
             </div>
-            <p className="text-sm font-bold text-slate-100">
+            <p className="text-sm font-bold text-slate-900">
               {selectedRevision?.enforcementDate || lawData?.info.enforcementDate || '-'}
             </p>
           </div>
 
-          <div className="bg-slate-800/60 border border-slate-800 p-3.5 rounded-xl">
-            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <Layers className="w-3.5 h-3.5 text-amber-400" />
+          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+              <Layers className="w-3.5 h-3.5 text-amber-600" />
               <span>전체 조문 수</span>
             </div>
-            <p className="text-sm font-bold text-amber-300 flex items-center gap-1.5">
+            <p className="text-sm font-bold text-indigo-700 flex items-center gap-1.5">
               {isLoadingLawDetail ? (
                 <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-400" />
-                  <span className="text-xs text-amber-400/90 font-medium">조문 동기화 중...</span>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-600" />
+                  <span className="text-xs text-indigo-600 font-medium">조문 동기화 중...</span>
                 </>
               ) : (
                 `${lawData?.articles.length || 0}개 조문`
@@ -516,12 +496,12 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
             </p>
           </div>
 
-          <div className="bg-slate-800/60 border border-slate-800 p-3.5 rounded-xl">
-            <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
-              <FileCheck2 className="w-3.5 h-3.5 text-blue-400" />
+          <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-xl">
+            <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+              <FileCheck2 className="w-3.5 h-3.5 text-blue-600" />
               <span>공포번호</span>
             </div>
-            <p className="text-sm font-bold text-slate-100">
+            <p className="text-sm font-bold text-slate-900">
               {selectedRevision?.promulgationNo || lawData?.info.promulgationNo || '-'}
             </p>
           </div>
@@ -530,28 +510,28 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
 
       {/* Progress Steps Indicator */}
       {(isRunning || steps.some((s) => s.status !== 'idle')) && (
-        <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-4">
+          <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             자동화 작업 진행 현황
           </h3>
           <div className="space-y-3">
             {steps.map((step) => (
               <div
                 key={step.id}
-                className="flex items-start gap-3 text-xs p-3 rounded-lg bg-slate-900/60 border border-slate-800"
+                className="flex items-start gap-3 text-xs p-3 rounded-lg bg-white border border-slate-200"
               >
                 <div className="mt-0.5 shrink-0">
                   {step.status === 'running' && (
-                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-400" />
+                    <RefreshCw className="w-4 h-4 animate-spin text-indigo-600" />
                   )}
                   {step.status === 'success' && (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   )}
                   {step.status === 'error' && (
-                    <AlertCircle className="w-4 h-4 text-rose-400" />
+                    <AlertCircle className="w-4 h-4 text-rose-600" />
                   )}
                   {step.status === 'idle' && (
-                    <div className="w-4 h-4 rounded-full border border-slate-600 bg-slate-800" />
+                    <div className="w-4 h-4 rounded-full border border-slate-300 bg-slate-100" />
                   )}
                 </div>
 
@@ -559,18 +539,18 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
                   <p
                     className={`font-semibold ${
                       step.status === 'running'
-                        ? 'text-indigo-300'
+                        ? 'text-indigo-700'
                         : step.status === 'success'
-                        ? 'text-slate-200'
+                        ? 'text-slate-900'
                         : step.status === 'error'
-                        ? 'text-rose-300'
-                        : 'text-slate-500'
+                        ? 'text-rose-700'
+                        : 'text-slate-400'
                     }`}
                   >
                     {step.title}
                   </p>
                   {step.message && (
-                    <p className="text-[11px] text-slate-400 mt-0.5">{step.message}</p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{step.message}</p>
                   )}
                 </div>
               </div>
@@ -581,8 +561,8 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
 
       {/* Error Banner */}
       {errorMessage && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/60 text-rose-300 text-xs flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+        <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
           <div>
             <p className="font-bold text-sm">동기화 오류 발생</p>
             <p className="mt-1 leading-relaxed opacity-90">{errorMessage}</p>
@@ -590,19 +570,19 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
         </div>
       )}
 
-      {/* Success Result Link Banner (Separate Files or Single File) */}
+      {/* Success Result Link Banner */}
       {(createdSheetUrl || createdFiles.length > 0) && (
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-emerald-950/60 to-slate-900 border border-emerald-500/40 text-emerald-200 shadow-lg space-y-4">
+        <div className="p-6 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-950 shadow-sm space-y-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2.5">
-              <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+              <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0" />
               <div>
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-base font-black text-emerald-950">
                   {createdFiles.length > 0
                     ? `🎉 총 ${createdFiles.length}개 관세법 개정본 개별 Google Sheets 파일 생성이 완료되었습니다!`
                     : 'Google Sheets 저장이 성공적으로 완료되었습니다!'}
                 </h3>
-                <p className="text-xs text-slate-300 mt-0.5">
+                <p className="text-xs text-emerald-700 mt-0.5">
                   {createdFiles.length > 0
                     ? '140개 개정자료가 각각 독립된 개별 구글 스프레드시트 파일로 Google Drive에 저장되었습니다.'
                     : '생성된 Google Spreadsheet 문서를 바로 열어 관세법 조문 전체 데이터를 확인하실 수 있습니다.'}
@@ -614,7 +594,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
               <button
                 onClick={handleDownloadZip}
                 disabled={isDownloadingZip}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md transition-colors"
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
               >
                 <FolderArchive className="w-4 h-4" />
                 <span>개별 CSV ZIP 압축파일 다운로드</span>
@@ -625,7 +605,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
           {/* If 140 Separate Google Sheets Files were created */}
           {createdFiles.length > 0 ? (
             <div className="space-y-3 pt-2">
-              <div className="flex items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+              <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-xl border border-emerald-200">
                 <div className="relative flex-1">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -633,38 +613,38 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
                     value={fileSearchQuery}
                     onChange={(e) => setFileSearchQuery(e.target.value)}
                     placeholder="공포번호(예: 법률 제21208호) 또는 시행일자로 생성된 파일 검색..."
-                    className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                    className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                 </div>
-                <div className="text-xs text-slate-400 font-mono">
+                <div className="text-xs text-slate-500 font-mono">
                   {createdFiles.filter(f => !fileSearchQuery || f.title.includes(fileSearchQuery) || f.promulgationNo.includes(fileSearchQuery)).length} / {createdFiles.length}개 항목
                 </div>
               </div>
 
-              <div className="max-h-72 overflow-y-auto pr-1 space-y-2 custom-scrollbar">
+              <div className="max-h-72 overflow-y-auto pr-1 space-y-2">
                 {createdFiles
                   .filter((f) => !fileSearchQuery || f.title.includes(fileSearchQuery) || f.promulgationNo.includes(fileSearchQuery))
                   .map((file, idx) => (
                     <div
                       key={file.spreadsheetId || idx}
-                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-emerald-500/50 transition-all text-xs"
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white border border-slate-200 hover:border-indigo-400 transition-all text-xs shadow-xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-semibold text-slate-200 truncate">{file.title}</p>
+                            <p className="font-bold text-slate-900 truncate">{file.title}</p>
                             {file.isExisting ? (
-                              <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-1.5 py-0.2 rounded font-mono shrink-0">
+                              <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.2 rounded font-mono shrink-0">
                                 기존파일 재활용
                               </span>
                             ) : (
-                              <span className="bg-indigo-500/20 text-indigo-300 text-[10px] px-1.5 py-0.2 rounded font-mono shrink-0">
+                              <span className="bg-indigo-100 text-indigo-800 text-[10px] px-1.5 py-0.2 rounded font-mono shrink-0">
                                 신규파일 생성
                               </span>
                             )}
                           </div>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
+                          <p className="text-[11px] text-slate-500 mt-0.5">
                             {file.promulgationNo} · 시행일: {file.enforcementDate}
                           </p>
                         </div>
@@ -674,7 +654,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
                         href={file.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white shrink-0 transition-colors"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 transition-colors shadow-2xs"
                       >
                         <span>시트 열기</span>
                         <ExternalLink className="w-3.5 h-3.5" />
@@ -690,7 +670,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
                   href={createdSheetUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm transition-colors"
                 >
                   <span>Google Sheets 문서 열기</span>
                   <ExternalLink className="w-4 h-4" />
@@ -701,7 +681,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
                     navigator.clipboard.writeText(createdSheetUrl);
                     alert('스프레드시트 주소가 클립보드에 복사되었습니다.');
                   }}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors"
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 transition-colors"
                 >
                   링크 주소 복사
                 </button>

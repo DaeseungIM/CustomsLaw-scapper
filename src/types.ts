@@ -118,3 +118,59 @@ export interface HsOpinionItem {
   remarks: string;
 }
 
+export type SearchTargetType = 'law' | 'admrul';
+
+export interface UnifiedSearchItem {
+  id: string;
+  seq: string;
+  name: string;
+  targetType: SearchTargetType;
+  department: string;
+  promulgationDate: string;
+  promulgationNo: string;
+  enforcementDate: string;
+  revisionType: string;
+  ruleType?: string; // 법률, 대통령령, 기획재정부령, 훈령, 예규, 고시 등
+  currentYn?: string;
+}
+
+export interface UnifiedRevisionItem {
+  id: string;
+  seq: string;
+  name: string;
+  targetType: SearchTargetType;
+  promulgationDate: string;
+  promulgationNo: string;
+  enforcementDate: string;
+  revisionType: string;
+  department: string;
+  ruleType: string;
+  checked?: boolean;
+}
+
+export interface DriveFolderInfo {
+  id: string;
+  name: string;
+  url: string;
+  created: boolean;
+  isExisting: boolean;
+}
+
+export interface DrivePermissionOption {
+  type: 'private' | 'anyone' | 'user';
+  role: 'reader' | 'writer';
+  email?: string;
+}
+
+export interface SaveProgressState {
+  isSaving: boolean;
+  currentStep: number;
+  totalSteps: number;
+  percentage: number;
+  message: string;
+  folderInfo?: DriveFolderInfo | null;
+  savedSheets?: Array<{ title: string; url: string; isExisting?: boolean }>;
+  error?: string | null;
+}
+
+

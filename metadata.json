@@ -1,6 +1,6 @@
 {
   "name": "관세법 구글 스프레드시트 자동 저장 도구",
-  "description": "관세청 관세품목분류포털(UNIPASS CLIP)의 전체 연도(1988년~2026년) 품목분류결정, 위원회결정, 협의회결정 사례를 수집하고 연도별 탭으로 구글 시트에 자동 배치 저장하는 시스템입니다.",
+  "description": "국가법령정보 오픈API(법령 및 행정규칙 target=admrul)와 UNIPASS CLIP 결정사례 데이터를 수집하여 Google Drive v3 폴더 관리 및 Google Sheets로 자동 저장·내보내기하는 도구입니다.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

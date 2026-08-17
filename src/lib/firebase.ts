@@ -16,6 +16,7 @@ const provider = new GoogleAuthProvider();
 // Add required Google Workspace scopes for Sheets and Drive
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.addScope('https://www.googleapis.com/auth/drive.file');
+provider.addScope('https://www.googleapis.com/auth/drive');
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;

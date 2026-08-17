@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { OcKeyModal } from './components/OcKeyModal';
+import { UnifiedSearchAndDriveExporter } from './components/UnifiedSearchAndDriveExporter';
 import { LawFetcher } from './components/LawFetcher';
 import { GoogleSheetsExporter } from './components/GoogleSheetsExporter';
 import { LawViewer } from './components/LawViewer';
@@ -9,7 +10,17 @@ import { AdmRulesExporter } from './components/AdmRulesExporter';
 import { CustomsActData, ExportConfig, UserProfile, LawRevisionItem } from './types';
 import { initAuth, googleSignIn, logout } from './lib/firebase';
 import { User } from 'firebase/auth';
-import { FileSpreadsheet, BookOpen, Sparkles, Shield, Info, Gavel, Building2 } from 'lucide-react';
+import {
+  FileSpreadsheet,
+  BookOpen,
+  FolderSync,
+  Gavel,
+  Building2,
+  HardDrive,
+  Sparkles,
+  ShieldCheck,
+  Search
+} from 'lucide-react';
 
 export default function App() {
   const [ocKey, setOcKey] = useState('ceiai_law_test');
@@ -20,10 +31,10 @@ export default function App() {
   const [needsAuth, setNeedsAuth] = useState(true);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  // Active View Tab
-  const [activeTab, setActiveTab] = useState<'sync' | 'viewer' | 'decisions2026' | 'admRules'>('sync');
+  // Active View Tab (Default to new Google Drive unified manager)
+  const [activeTab, setActiveTab] = useState<'unified' | 'sync' | 'admRules' | 'decisions2026' | 'viewer'>('unified');
 
-  // Selected Revision & Law Data
+  // Selected Revision & Law Data for classic tabs
   const [selectedRevision, setSelectedRevision] = useState<LawRevisionItem | null>(null);
   const [isLoadingLawDetail, setIsLoadingLawDetail] = useState(false);
   const [lawData, setLawData] = useState<CustomsActData | null>(null);
@@ -58,7 +69,7 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
     async function loadPreview() {
-      if (selectedRevision) return; // Handled by revision select handler
+      if (selectedRevision) return;
       try {
         const res = await fetch(`/api/law/detail?ocKey=${encodeURIComponent(ocKey)}`);
         if (res.ok) {
@@ -130,7 +141,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased flex flex-col selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased flex flex-col selection:bg-indigo-600 selection:text-white">
       {/* Top Header */}
       <Header
         user={user}
@@ -145,75 +156,100 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Navigation Tabs */}
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-          <div className="flex items-center space-x-2 bg-slate-900/80 p-1 rounded-xl border border-slate-800">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-4 gap-4">
+          <div className="flex items-center space-x-1.5 bg-slate-200/70 p-1.5 rounded-2xl border border-slate-200 overflow-x-auto">
+            {/* Tab 1: New Drive Unified Manager */}
+            <button
+              onClick={() => setActiveTab('unified')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                activeTab === 'unified'
+                  ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              <HardDrive className="w-4 h-4" />
+              <span>법령 · 행정규칙 드라이브 연동</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 text-white font-bold">
+                신규
+              </span>
+            </button>
+
+            {/* Tab 2: Classic Sync & Sheets */}
             <button
               onClick={() => setActiveTab('sync')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 activeTab === 'sync'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
               <FileSpreadsheet className="w-4 h-4" />
-              <span>동기화 & Google Sheets 저장</span>
+              <span>관세법 140회 동기화</span>
             </button>
 
+            {/* Tab 3: Administrative Rules Notices & HSK 18,823 */}
+            <button
+              onClick={() => setActiveTab('admRules')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                activeTab === 'admRules'
+                  ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              <Building2 className="w-4 h-4" />
+              <span>고시·별표 & HSK 18,823</span>
+            </button>
+
+            {/* Tab 4: 2026 Decision Cases Exporter */}
+            <button
+              onClick={() => setActiveTab('decisions2026')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                activeTab === 'decisions2026'
+                  ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              <Gavel className="w-4 h-4" />
+              <span>품목분류 결정사례</span>
+            </button>
+
+            {/* Tab 5: Law Articles Viewer */}
             <button
               onClick={() => setActiveTab('viewer')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 activeTab === 'viewer'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  ? 'bg-indigo-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
               }`}
             >
               <BookOpen className="w-4 h-4" />
-              <span>관세법 조문 조회/검색</span>
+              <span>조문 뷰어</span>
               {lawData && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-950 text-indigo-300 font-mono">
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-800 font-mono">
                   {lawData.articles.length}
                 </span>
               )}
             </button>
-
-            <button
-              onClick={() => setActiveTab('decisions2026')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'decisions2026'
-                  ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <Gavel className="w-4 h-4 text-amber-400" />
-              <span>2026년 결정사례 (구글시트)</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-950 text-amber-300 font-bold">
-                2026
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('admRules')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
-                activeTab === 'admRules'
-                  ? 'bg-teal-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-              }`}
-            >
-              <Building2 className="w-4 h-4 text-teal-300" />
-              <span>행정규칙 관세 고시별표 (구글시트)</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-950 text-teal-300 font-bold">
-                law.go.kr
-              </span>
-            </button>
           </div>
 
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-400">
-            <Shield className="w-3.5 h-3.5 text-emerald-400" />
-            <span>국가법령 Open API v1.0 준수</span>
+          <div className="hidden lg:flex items-center gap-2 text-xs text-slate-500 font-medium">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
+            <span>국가법령 Open API & Drive API v3</span>
           </div>
         </div>
 
-        {/* Tab 1: Sync & Sheets Export */}
+        {/* Tab 1: New Unified Search & Drive Exporter */}
+        {activeTab === 'unified' && (
+          <UnifiedSearchAndDriveExporter
+            ocKey={ocKey}
+            user={user}
+            needsAuth={needsAuth}
+            onSignIn={handleSignIn}
+            onOpenOcKeyModal={() => setIsOcKeyModalOpen(true)}
+          />
+        )}
+
+        {/* Tab 2: Classic Sync & Sheets Export */}
         {activeTab === 'sync' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-7 space-y-8">
@@ -237,33 +273,21 @@ export default function App() {
                 onChangeConfig={setExportConfig}
                 lawData={lawData}
               />
-
-              {/* Service Info Note */}
-              <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-5 space-y-3 text-xs text-slate-400">
-                <div className="flex items-center gap-2 text-slate-200 font-bold">
-                  <Info className="w-4 h-4 text-indigo-400" />
-                  <span>서비스 동작 원리 및 보안</span>
-                </div>
-                <ul className="space-y-1.5 list-disc list-inside leading-relaxed text-slate-400">
-                  <li>
-                    <span className="text-slate-300">Open API 인증:</span> 입력하신 API 키(<code className="text-amber-300 font-mono">{ocKey}</code>)를 통해 법제처 서버에서 실시간 호출합니다.
-                  </li>
-                  <li>
-                    <span className="text-slate-300">보안 권한:</span> Google OAuth 인증 토큰은 메모리에만 안전하게 유지되며, 오직 지정하신 구글 스프레드시트 기록에만 활용됩니다.
-                  </li>
-                  <li>
-                    <span className="text-slate-300">자동 표 서식:</span> 조문 내용 자동 줄바꿈, 헤더 서식 및 틀 고정이 자동 적용되어 최적의 가독성을 제공합니다.
-                  </li>
-                </ul>
-              </div>
             </div>
           </div>
         )}
 
-        {/* Tab 2: Law Articles Interactive Viewer */}
-        {activeTab === 'viewer' && <LawViewer lawData={lawData} />}
+        {/* Tab 3: Administrative Rules Notices & Annex Exporter */}
+        {activeTab === 'admRules' && (
+          <AdmRulesExporter
+            ocKey={ocKey}
+            user={user}
+            needsAuth={needsAuth}
+            onSignIn={handleSignIn}
+          />
+        )}
 
-        {/* Tab 3: 2026 Decision Cases Exporter */}
+        {/* Tab 4: 2026 Decision Cases Exporter */}
         {activeTab === 'decisions2026' && (
           <Decisions2026Exporter
             ocKey={ocKey}
@@ -273,36 +297,29 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Administrative Rules Notices & Annex Exporter */}
-        {activeTab === 'admRules' && (
-          <AdmRulesExporter
-            ocKey={ocKey}
-            user={user}
-            needsAuth={needsAuth}
-            onSignIn={handleSignIn}
-          />
-        )}
+        {/* Tab 5: Law Articles Interactive Viewer */}
+        {activeTab === 'viewer' && <LawViewer lawData={lawData} />}
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/80 py-6 mt-12 bg-slate-950 text-slate-500 text-xs">
+      <footer className="border-t border-slate-200 py-6 mt-12 bg-white text-slate-500 text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p>© 2026 대한민국 국가법령정보포털 Open API 연동 자동화 시스템</p>
+          <p>© 2026 대한민국 관세법령 & 행정규칙 Google Drive / Sheets 자동화 시스템</p>
           <div className="flex items-center space-x-4">
             <a
               href="https://open.law.go.kr/LSO/usr/usrOcInfoMod.do"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-slate-300 transition-colors"
+              className="hover:text-indigo-600 transition-colors font-medium"
             >
               국가법령 Open API 센터
             </a>
             <span>•</span>
             <button
               onClick={() => setIsOcKeyModalOpen(true)}
-              className="hover:text-slate-300 transition-colors"
+              className="hover:text-indigo-600 transition-colors font-mono font-bold text-slate-700"
             >
-              API Key 변경 ({ocKey})
+              API Key ({ocKey})
             </button>
           </div>
         </div>

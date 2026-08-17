@@ -286,21 +286,19 @@ export function Decisions2026Exporter({
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-indigo-950/80 via-slate-900 to-slate-950 border border-indigo-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 text-xs font-semibold">
-              <Calendar className="w-3.5 h-3.5 text-indigo-400" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold">
+              <Calendar className="w-3.5 h-3.5 text-indigo-600" />
               <span>연도별(1988년~2026년) 관세/품목분류 결정사례 DB</span>
             </div>
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">
-              <Gavel className="w-7 h-7 text-indigo-400" />
+            <h2 className="text-2xl font-black text-slate-900 flex items-center gap-3">
+              <Gavel className="w-7 h-7 text-indigo-600" />
               <span>연도별(1988~2026년) 선택 & 구글시트 자동 연동 저장</span>
             </h2>
-            <p className="text-sm text-slate-300 max-w-2xl leading-relaxed">
-              관세청 관세품목분류포털(UNIPASS CLIP)의 <strong className="text-emerald-300">전체 연도(1988~2026년) 품목분류 결정사례, 위원회 결정, 협의회 결정</strong>을 수집하여, <strong className="text-amber-300">연도별 탭(2026년 사례... 1988년 사례)</strong>으로 구분해 구글 시트에 자동 배치 저장합니다.
+            <p className="text-sm text-slate-600 max-w-2xl leading-relaxed">
+              관세청 관세품목분류포털(UNIPASS CLIP)의 <strong className="text-emerald-700">전체 연도(1988~2026년) 품목분류 결정사례, 위원회 결정, 협의회 결정</strong>을 수집하여, <strong className="text-amber-700">연도별 탭(2026년 사례... 1988년 사례)</strong>으로 구분해 구글 시트에 자동 배치 저장합니다.
             </p>
           </div>
 
@@ -308,7 +306,7 @@ export function Decisions2026Exporter({
             <button
               onClick={handleDownloadCSV}
               disabled={filteredDecisions.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs shadow-md transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-bold text-xs shadow-xs transition-all disabled:opacity-50"
               title="구글 시트 생성 없이 현재 검색된 결과를 엑셀(CSV) 파일로 저장합니다."
             >
               <span>CSV/엑셀 직접 다운로드</span>
@@ -317,7 +315,7 @@ export function Decisions2026Exporter({
             {needsAuth ? (
               <button
                 onClick={onSignIn}
-                className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 font-bold text-sm shadow-lg transition-all"
+                className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-sm shadow-xs transition-all"
               >
                 <span>Google 계정 연결하기</span>
               </button>
@@ -326,7 +324,7 @@ export function Decisions2026Exporter({
                 <button
                   onClick={() => handleExportToSheets(true)}
                   disabled={isExporting}
-                  className="flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-emerald-950/50 transition-all disabled:opacity-50 active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs sm:text-sm shadow-sm transition-all disabled:opacity-50 active:scale-[0.98]"
                   title="1988년부터 2026년까지 전체 연도를 연도별 개별 시트 탭으로 구글 스프레드시트에 자동 생성합니다."
                 >
                   {isExporting ? (
@@ -346,7 +344,7 @@ export function Decisions2026Exporter({
                   <button
                     onClick={() => handleExportToSheets(false)}
                     disabled={isExporting}
-                    className="flex items-center justify-center gap-1.5 px-3.5 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/40 font-bold text-xs shadow-md transition-all disabled:opacity-50"
+                    className="flex items-center justify-center gap-1.5 px-3.5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-indigo-700 border border-slate-200 font-bold text-xs shadow-xs transition-all disabled:opacity-50"
                     title={`현재 선택된 ${selectedYear}년 자료만 시트에 저장합니다.`}
                   >
                     <span>{selectedYear}년만 저장</span>

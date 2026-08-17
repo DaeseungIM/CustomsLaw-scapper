@@ -333,54 +333,54 @@ export function AdmRulesExporter({
       </div>
 
       {/* Dedicated Section & Separate Button for 25년 관세통계통합품목분류표_별표.xlsx (18,823행) */}
-      <div className="bg-gradient-to-br from-amber-950/60 via-slate-900 to-indigo-950/60 border-2 border-amber-500/50 rounded-2xl p-6 shadow-2xl space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-amber-500/30 pb-4">
+      <div className="bg-gradient-to-br from-amber-50 via-white to-indigo-50 border-2 border-amber-300 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-amber-200 pb-4">
           <div className="space-y-1.5">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-xs font-black border border-amber-500/40 font-mono">
+              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-black border border-amber-300 font-mono">
                 ⚡ 별도 전용 작업 버튼
               </span>
-              <span className="text-xs text-slate-400 font-mono">18,823행 전체 데이터 처리</span>
+              <span className="text-xs text-slate-500 font-mono">18,823행 전체 데이터 처리</span>
             </div>
-            <h3 className="text-xl font-black text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-400" />
+            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-600" />
               <span>[25년 관세통계통합품목분류표_별표.xlsx] 18,823행 전용 구글시트 반영</span>
             </h3>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              첫행 <strong className="text-amber-300 font-mono">2025.1.1. 시행</strong> 고시 기준의 <strong className="text-amber-200">품목번호, 품명(국문), 품명(영문)</strong> 및 <strong className="text-amber-200">관세ㆍ통계통합품목분류표의 해석에 관한 통칙(통칙 1~6)</strong>을 포함한 총 18,823개 행 데이터를 그대로 구글시트에 반영합니다.
+            <p className="text-xs text-slate-600 leading-relaxed">
+              첫행 <strong className="text-amber-800 font-mono">2025.1.1. 시행</strong> 고시 기준의 <strong className="text-amber-900">품목번호, 품명(국문), 품명(영문)</strong> 및 <strong className="text-amber-900">관세ㆍ통계통합품목분류표의 해석에 관한 통칙(통칙 1~6)</strong>을 포함한 총 18,823개 행 데이터를 그대로 구글시트에 반영합니다.
             </p>
           </div>
 
           {/* Google Sheets Custom Title & Optional Excel File Selection */}
-          <div className="shrink-0 space-y-3 bg-slate-950/80 p-3.5 rounded-xl border border-amber-500/30 min-w-[300px]">
-            <div className="text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
-              <FileSpreadsheet className="w-3.5 h-3.5 text-amber-400" />
+          <div className="shrink-0 space-y-3 bg-white p-3.5 rounded-xl border border-amber-200 min-w-[300px] shadow-2xs">
+            <div className="text-[11px] font-bold text-amber-800 flex items-center gap-1.5">
+              <FileSpreadsheet className="w-3.5 h-3.5 text-amber-600" />
               <span>구글시트 제목 및 엑셀파일 지정</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <label className="text-[11px] font-bold text-slate-300 shrink-0">구글시트 제목:</label>
+              <label className="text-[11px] font-bold text-slate-700 shrink-0">구글시트 제목:</label>
               <input
                 type="text"
                 value={customTitle}
                 onChange={(e) => setCustomTitle(e.target.value)}
                 placeholder="제목 입력 (예: 1)"
-                className="px-2.5 py-1.5 text-xs bg-slate-900 border border-slate-700 text-amber-300 font-bold rounded focus:outline-none focus:border-amber-500 w-full"
+                className="px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 text-amber-900 font-bold rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-500 w-full"
               />
             </div>
 
-            <div className="space-y-1 pt-1 border-t border-slate-800">
-              <label className="text-[11px] font-bold text-slate-300 block">
+            <div className="space-y-1 pt-1 border-t border-slate-100">
+              <label className="text-[11px] font-bold text-slate-700 block">
                 엑셀 파일 직접 선택 (선택 사항):
               </label>
               <input
                 type="file"
                 accept=".xlsx,.xls,.csv"
                 onChange={handleFileChange}
-                className="block w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-amber-500/20 file:text-amber-300 hover:file:bg-amber-500/30 cursor-pointer"
+                className="block w-full text-[11px] text-slate-500 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-[11px] file:font-semibold file:bg-amber-100 file:text-amber-800 hover:file:bg-amber-200 cursor-pointer"
               />
               {selectedFile ? (
-                <div className="text-[10px] text-emerald-400 font-medium">
+                <div className="text-[10px] text-emerald-700 font-medium">
                   ✓ 선택됨: {selectedFile.name} (지정한 엑셀파일 내용만 구글시트에 반영)
                 </div>
               ) : (
@@ -394,52 +394,52 @@ export function AdmRulesExporter({
 
         {/* Row Metadata Badges */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
-          <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-            <div className="text-[10px] text-slate-400">시행일자 Header</div>
-            <div className="font-mono font-black text-amber-300">2025.1.1. 시행</div>
+          <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="text-[10px] text-slate-400 font-semibold">시행일자 Header</div>
+            <div className="font-mono font-black text-amber-700">2025.1.1. 시행</div>
           </div>
-          <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-            <div className="text-[10px] text-slate-400">핵심 구분 항목</div>
-            <div className="font-bold text-slate-200">품목번호(A~D: 4,6,8,10) | 품명(E) | Description(F)</div>
+          <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="text-[10px] text-slate-400 font-semibold">핵심 구분 항목</div>
+            <div className="font-bold text-slate-800">품목번호(4,6,8,10) | 품명 | Description</div>
           </div>
-          <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-            <div className="text-[10px] text-slate-400">특정 위치 앵커 반영</div>
-            <div className="font-bold text-indigo-300">4행/5행 통칙ㆍ20행 제1부ㆍ30행 품목번호/품명ㆍ31행 0101ㆍ137행 제2류</div>
+          <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="text-[10px] text-slate-400 font-semibold">특정 위치 앵커 반영</div>
+            <div className="font-bold text-indigo-700">4·5행 통칙 / 31행 0101 / 137행 제2류</div>
           </div>
-          <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800">
-            <div className="text-[10px] text-slate-400">전체 데이터 수량</div>
-            <div className="font-mono font-black text-emerald-300">18,823개 행 (전체)</div>
+          <div className="bg-white p-2.5 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="text-[10px] text-slate-400 font-semibold">전체 데이터 수량</div>
+            <div className="font-mono font-black text-emerald-700">18,823개 행 (전체)</div>
           </div>
         </div>
 
-        {/* Separate Action Buttons (미리보기 & 별도 내보내기 버튼) */}
-        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-800">
-          <div className="text-xs text-slate-300">
-            👉 <strong className="text-amber-300 font-bold">[데이터 미리보기 & 검증]</strong>으로 전체 18,823행을 먼저 확인하신 후, 바로 구글시트로 내보내실 수 있습니다.
+        {/* Separate Action Buttons */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200">
+          <div className="text-xs text-slate-600 font-medium">
+            👉 <strong className="text-amber-800 font-bold">[데이터 미리보기 & 검증]</strong>으로 전체 18,823행을 먼저 확인하신 후, 바로 구글시트로 내보내실 수 있습니다.
           </div>
 
           <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
             <button
               onClick={() => setIsPreviewOpen(true)}
-              className="w-full sm:w-auto px-5 py-3.5 rounded-xl bg-slate-950 hover:bg-slate-800 text-amber-300 font-black text-xs border-2 border-amber-500/50 shadow-xl transition-all active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto px-5 py-3 rounded-xl bg-white hover:bg-slate-50 text-amber-800 font-black text-xs border border-amber-300 shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Eye className="w-4 h-4 text-amber-400" />
+              <Eye className="w-4 h-4 text-amber-600" />
               <span>👁️ [18,823행 데이터 미리보기 & 검증]</span>
             </button>
 
             <button
               onClick={handleDedicatedHskExport}
               disabled={isDedicatedExporting}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-600 to-indigo-600 hover:from-amber-400 hover:to-indigo-500 text-slate-950 font-black text-xs shadow-xl shadow-amber-950/50 transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 cursor-pointer"
             >
               {isDedicatedExporting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
                   <span>18,823행 구글시트 반영 중...</span>
                 </>
               ) : (
                 <>
-                  <FileSpreadsheet className="w-4 h-4 text-slate-950" />
+                  <FileSpreadsheet className="w-4 h-4 text-white" />
                   <span>📊 [25년 관세통계통합품목분류표_별표 (18,823행) 전용 구글시트 반영]</span>
                 </>
               )}
@@ -490,14 +490,14 @@ export function AdmRulesExporter({
       </div>
 
       {/* Main Export Action Card */}
-      <div className="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl space-y-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
           <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <Download className="w-5 h-5 text-teal-400" />
+            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <Download className="w-5 h-5 text-teal-600" />
               <span>구글 스프레드시트 내보내기 실행</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               [관세통계통합분류표] 엑셀 별표와 [품목분류 적용기준 고시] 별표1, 별표2를 별도 시트로 구성하여 즉시 생성합니다.
             </p>
           </div>
@@ -505,26 +505,26 @@ export function AdmRulesExporter({
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={() => handleDownloadCSV('all')}
-              className="px-4 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold text-xs shadow-md transition-all flex items-center gap-2"
+              className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-bold text-xs shadow-xs transition-all flex items-center gap-2"
               title="구글 시트 생성 없이 즉시 컴퓨터에 엑셀(CSV) 파일로 저장합니다."
             >
-              <Download className="w-4 h-4 text-emerald-400" />
+              <Download className="w-4 h-4 text-emerald-600" />
               <span>CSV / 엑셀 전체 다운로드</span>
             </button>
 
             <button
               onClick={handleExportSheets}
               disabled={isExporting}
-              className="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 hover:from-teal-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg shadow-teal-900/30 transition-all transform active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2.5"
+              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-black text-xs shadow-sm transition-all disabled:opacity-50 flex items-center justify-center gap-2.5"
             >
               {isExporting ? (
                 <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>구글시트 생성 및 서식 적용 중...</span>
                 </>
               ) : (
                 <>
-                  <FileSpreadsheet className="w-5 h-5" />
+                  <FileSpreadsheet className="w-4 h-4" />
                   <span>3개 고시 별표 구글시트 생성하기</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
@@ -535,13 +535,13 @@ export function AdmRulesExporter({
 
         {/* Export Success Result Card */}
         {exportResult && (
-          <div className="p-5 rounded-xl bg-emerald-950/40 border border-emerald-800/80 text-emerald-100 space-y-4 animate-fadeIn">
+          <div className="p-5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 space-y-4 animate-fadeIn">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-6 h-6 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-base font-bold text-emerald-300">{exportResult.message}</h4>
-                  <p className="text-xs text-emerald-200/80 mt-1">
+                  <h4 className="text-base font-bold text-emerald-800">{exportResult.message}</h4>
+                  <p className="text-xs text-emerald-700 mt-1">
                     [1. 관세통계통합분류표({exportResult.hskCount}건)], [2. 별표1_HS해설서({exportResult.explanatoryCount}건)], [3. 별표2_HS의견서({exportResult.opinionCount}건)] 별도 시트가 성공적으로 저장되었습니다.
                   </p>
                 </div>
@@ -551,14 +551,14 @@ export function AdmRulesExporter({
                 href={exportResult.spreadsheetUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="shrink-0 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md flex items-center gap-2 transition-all"
+                className="shrink-0 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center gap-2 transition-all"
               >
                 <span>구글시트 열기</span>
                 <ExternalLink className="w-4 h-4" />
               </a>
             </div>
 
-            <div className="text-xs font-mono bg-slate-950/60 p-3 rounded-lg border border-emerald-900/60 overflow-x-auto text-emerald-300">
+            <div className="text-xs font-mono bg-white p-3 rounded-lg border border-emerald-200 overflow-x-auto text-emerald-800">
               {exportResult.spreadsheetUrl}
             </div>
           </div>
@@ -566,22 +566,22 @@ export function AdmRulesExporter({
 
         {/* Error Notification */}
         {error && (
-          <div className="p-4 rounded-xl bg-red-950/40 border border-red-800/60 text-red-200 text-xs space-y-3">
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-900 text-xs space-y-3">
             <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
               <div className="space-y-1">
-                <p className="font-bold text-red-300">Google Sheets API 오류 / 미활성화 안내</p>
+                <p className="font-bold text-red-800">Google Sheets API 오류 / 미활성화 안내</p>
                 <p className="leading-relaxed">{error}</p>
               </div>
             </div>
 
-            <div className="pt-2 border-t border-red-900/40 flex flex-wrap items-center justify-between gap-3">
-              <span className="text-[11px] text-red-300/80">
+            <div className="pt-2 border-t border-red-200 flex flex-wrap items-center justify-between gap-3">
+              <span className="text-[11px] text-red-700">
                 💡 구글시트 API가 꺼져있어도 데이터를 아래 엑셀(CSV) 버튼으로 즉시 다운로드하실 수 있습니다:
               </span>
               <button
                 onClick={() => handleDownloadCSV('all')}
-                className="px-3.5 py-1.5 rounded-lg bg-red-900/60 hover:bg-red-800 text-white font-bold text-xs border border-red-700 transition-all flex items-center gap-1.5"
+                className="px-3.5 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-800 font-bold text-xs border border-red-200 transition-all flex items-center gap-1.5"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>CSV/엑셀 파일로 직다운로드</span>
@@ -592,15 +592,15 @@ export function AdmRulesExporter({
       </div>
 
       {/* Interactive Data Preview Component */}
-      <div className="bg-slate-900/90 rounded-2xl p-6 border border-slate-800 shadow-xl space-y-6">
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-6">
         {/* Header & Search */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-teal-400" />
+            <h3 className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-teal-600" />
               <span>수집된 행정규칙 별표 데이터 프리뷰</span>
             </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               구글시트로 생성되는 관세청 고시 별표 데이터의 세부 내용을 사전 조회합니다.
             </p>
           </div>
@@ -612,24 +612,24 @@ export function AdmRulesExporter({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="HS코드, 품명, 키워드 검색..."
-              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500"
+              className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-teal-500"
             />
           </div>
         </div>
 
         {/* Sub-Tabs Selector */}
-        <div className="flex items-center space-x-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800 overflow-x-auto">
+        <div className="flex items-center space-x-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200 overflow-x-auto">
           <button
             onClick={() => setActiveSubTab('hsk')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'hsk'
-                ? 'bg-teal-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
             }`}
           >
             <ListOrdered className="w-4 h-4" />
             <span>1. [관세통계통합분류표] 별표 엑셀</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-950 text-teal-300 font-mono">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-800 text-white font-mono">
               {hskList.length}건
             </span>
           </button>
@@ -638,13 +638,13 @@ export function AdmRulesExporter({
             onClick={() => setActiveSubTab('explanatory')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'explanatory'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
             }`}
           >
             <FileText className="w-4 h-4 text-emerald-300" />
             <span>2. [품목분류 적용기준] 별표1 - HS 해설서</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-950 text-emerald-300 font-mono">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-800 text-white font-mono">
               {expList.length}건
             </span>
           </button>
@@ -653,13 +653,13 @@ export function AdmRulesExporter({
             onClick={() => setActiveSubTab('opinion')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
               activeSubTab === 'opinion'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'
             }`}
           >
             <Layers className="w-4 h-4 text-amber-300" />
             <span>3. [품목분류 적용기준] 별표2 - HS 품목분류의견서</span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-950 text-amber-300 font-mono">
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-800 text-white font-mono">
               {opList.length}건
             </span>
           </button>
@@ -668,16 +668,16 @@ export function AdmRulesExporter({
         {/* Loading State */}
         {isLoading && (
           <div className="py-12 text-center space-y-3">
-            <Loader2 className="w-8 h-8 animate-spin text-teal-400 mx-auto" />
-            <p className="text-xs text-slate-400">행정규칙 고시 별표 데이터를 로딩하고 있습니다...</p>
+            <Loader2 className="w-8 h-8 animate-spin text-teal-600 mx-auto" />
+            <p className="text-xs text-slate-500">행정규칙 고시 별표 데이터를 로딩하고 있습니다...</p>
           </div>
         )}
 
         {/* Table View 1: HSK Tariff Table */}
         {!isLoading && activeSubTab === 'hsk' && (
-          <div className="overflow-x-auto rounded-xl border border-slate-800">
-            <table className="w-full text-left text-xs text-slate-200 border-collapse">
-              <thead className="bg-slate-950 text-slate-300 border-b border-slate-800 font-semibold uppercase tracking-wider">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-700 border-collapse">
+              <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-bold uppercase tracking-wider">
                 <tr>
                   <th className="p-3">HSK 코드</th>
                   <th className="p-3">품명 (한글)</th>
@@ -688,16 +688,16 @@ export function AdmRulesExporter({
                   <th className="p-3">비고</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-slate-900/40">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {filteredHsk.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-800/40 transition-colors align-top">
-                    <td className="p-3 font-mono text-teal-300 font-bold whitespace-nowrap">{item.hskCode}</td>
-                    <td className="p-3 font-medium text-slate-100 max-w-xs leading-relaxed">{item.nameKo}</td>
-                    <td className="p-3 text-slate-400 max-w-xs leading-relaxed italic">{item.nameEn}</td>
-                    <td className="p-3 font-mono text-amber-300">{item.generalRate}</td>
-                    <td className="p-3 font-mono text-emerald-400">{item.agreementRate}</td>
-                    <td className="p-3 font-mono text-slate-300">{item.unit1}</td>
-                    <td className="p-3 text-slate-400 max-w-xs text-[11px] leading-relaxed">{item.remarks}</td>
+                  <tr key={idx} className="hover:bg-slate-50 transition-colors align-top">
+                    <td className="p-3 font-mono text-teal-700 font-bold whitespace-nowrap">{item.hskCode}</td>
+                    <td className="p-3 font-semibold text-slate-900 max-w-xs leading-relaxed">{item.nameKo}</td>
+                    <td className="p-3 text-slate-500 max-w-xs leading-relaxed italic">{item.nameEn}</td>
+                    <td className="p-3 font-mono text-amber-700 font-semibold">{item.generalRate}</td>
+                    <td className="p-3 font-mono text-emerald-700 font-semibold">{item.agreementRate}</td>
+                    <td className="p-3 font-mono text-slate-600">{item.unit1}</td>
+                    <td className="p-3 text-slate-500 max-w-xs text-[11px] leading-relaxed">{item.remarks}</td>
                   </tr>
                 ))}
               </tbody>
@@ -707,9 +707,9 @@ export function AdmRulesExporter({
 
         {/* Table View 2: HS Explanatory Notes (별표1) */}
         {!isLoading && activeSubTab === 'explanatory' && (
-          <div className="overflow-x-auto rounded-xl border border-slate-800">
-            <table className="w-full text-left text-xs text-slate-200 border-collapse">
-              <thead className="bg-slate-950 text-slate-300 border-b border-slate-800 font-semibold uppercase tracking-wider">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-700 border-collapse">
+              <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-bold uppercase tracking-wider">
                 <tr>
                   <th className="p-3">구분</th>
                   <th className="p-3">부/류 번호</th>
@@ -719,18 +719,18 @@ export function AdmRulesExporter({
                   <th className="p-3">품목분류 적용기준지침</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-slate-900/40">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {filteredExp.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-800/40 transition-colors align-top">
-                    <td className="p-3 font-mono text-emerald-400 whitespace-nowrap">{item.category}</td>
-                    <td className="p-3 font-medium text-slate-300 whitespace-nowrap">{item.sectionChapter}</td>
-                    <td className="p-3 font-mono text-teal-300 font-bold whitespace-nowrap">제{item.hsHeading}호</td>
+                  <tr key={idx} className="hover:bg-slate-50 transition-colors align-top">
+                    <td className="p-3 font-mono text-emerald-700 font-bold whitespace-nowrap">{item.category}</td>
+                    <td className="p-3 font-semibold text-slate-700 whitespace-nowrap">{item.sectionChapter}</td>
+                    <td className="p-3 font-mono text-teal-700 font-bold whitespace-nowrap">제{item.hsHeading}호</td>
                     <td className="p-3 max-w-xs space-y-1">
-                      <div className="font-bold text-slate-100 leading-relaxed">{item.titleKo}</div>
-                      <div className="text-[11px] text-slate-400 italic leading-relaxed">{item.titleEn}</div>
+                      <div className="font-bold text-slate-900 leading-relaxed">{item.titleKo}</div>
+                      <div className="text-[11px] text-slate-500 italic leading-relaxed">{item.titleEn}</div>
                     </td>
-                    <td className="p-3 max-w-md text-slate-300 text-[11px] leading-relaxed">{item.scopeContent}</td>
-                    <td className="p-3 max-w-sm text-slate-400 text-[11px] leading-relaxed bg-slate-950/40 p-2 rounded border border-slate-800/60">
+                    <td className="p-3 max-w-md text-slate-700 text-[11px] leading-relaxed">{item.scopeContent}</td>
+                    <td className="p-3 max-w-sm text-slate-600 text-[11px] leading-relaxed bg-slate-50 p-2 rounded-lg border border-slate-200">
                       {item.guideline}
                     </td>
                   </tr>
@@ -742,9 +742,9 @@ export function AdmRulesExporter({
 
         {/* Table View 3: HS Classification Opinions (별표2) */}
         {!isLoading && activeSubTab === 'opinion' && (
-          <div className="overflow-x-auto rounded-xl border border-slate-800">
-            <table className="w-full text-left text-xs text-slate-200 border-collapse">
-              <thead className="bg-slate-950 text-slate-300 border-b border-slate-800 font-semibold uppercase tracking-wider">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-left text-xs text-slate-700 border-collapse">
+              <thead className="bg-slate-50 text-slate-700 border-b border-slate-200 font-bold uppercase tracking-wider">
                 <tr>
                   <th className="p-3">의견서 번호</th>
                   <th className="p-3">HS 소호</th>
@@ -754,17 +754,17 @@ export function AdmRulesExporter({
                   <th className="p-3">비고 / 출처</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 bg-slate-900/40">
+              <tbody className="divide-y divide-slate-100 bg-white">
                 {filteredOp.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-slate-800/40 transition-colors align-top">
-                    <td className="p-3 font-mono text-amber-300 font-bold whitespace-nowrap">{item.opinionNo}</td>
-                    <td className="p-3 font-mono text-teal-300 font-bold whitespace-nowrap">{item.subheading}</td>
-                    <td className="p-3 max-w-xs font-medium text-slate-100 leading-relaxed">{item.itemName}</td>
-                    <td className="p-3 max-w-md text-slate-300 text-[11px] leading-relaxed">{item.opinionText}</td>
-                    <td className="p-3 max-w-sm text-slate-400 text-[11px] leading-relaxed bg-slate-950/40 p-2 rounded border border-slate-800/60">
+                  <tr key={idx} className="hover:bg-slate-50 transition-colors align-top">
+                    <td className="p-3 font-mono text-amber-700 font-bold whitespace-nowrap">{item.opinionNo}</td>
+                    <td className="p-3 font-mono text-teal-700 font-bold whitespace-nowrap">{item.subheading}</td>
+                    <td className="p-3 max-w-xs font-semibold text-slate-900 leading-relaxed">{item.itemName}</td>
+                    <td className="p-3 max-w-md text-slate-700 text-[11px] leading-relaxed">{item.opinionText}</td>
+                    <td className="p-3 max-w-sm text-slate-600 text-[11px] leading-relaxed bg-slate-50 p-2 rounded-lg border border-slate-200">
                       {item.rationale}
                     </td>
-                    <td className="p-3 text-slate-500 text-[10px] leading-relaxed whitespace-nowrap">{item.remarks}</td>
+                    <td className="p-3 text-slate-400 text-[10px] leading-relaxed whitespace-nowrap">{item.remarks}</td>
                   </tr>
                 ))}
               </tbody>
