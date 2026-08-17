@@ -87,8 +87,9 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
   const [recent2SheetUrl, setRecent2SheetUrl] = useState<string | null>(null);
   const [recent2TestSuccessMsg, setRecent2TestSuccessMsg] = useState<string | null>(null);
 
-  // Google Drive folder export states (관세법 140회 vs 외국환거래규정 10개, 1개 파일 vs 개별 파일)
-  const [targetLawOption, setTargetLawOption] = useState<'customs_act' | 'foreign_exchange'>('customs_act');
+  // Google Drive folder export states (관세법 140회 vs 외국환거래법 45회 vs 외국환거래규정 45회, 1개 파일 vs 개별 파일)
+  const [targetLawOption, setTargetLawOption] = useState<'customs_act' | 'foreign_exchange_act' | 'foreign_exchange_rule'>('customs_act');
+  const [revisionScopeOption, setRevisionScopeOption] = useState<'all' | '10' | '20'>('all');
   const [isExportingAllToDrive, setIsExportingAllToDrive] = useState(false);
   const [driveExportMode, setDriveExportMode] = useState<'single_file' | 'separate_files' | null>(null);
   const [customDriveFolderName, setCustomDriveFolderName] = useState(() => {
@@ -124,13 +125,15 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
   } | null>(null);
 
   // Switch law target option
-  const handleSelectTargetLaw = (option: 'customs_act' | 'foreign_exchange') => {
+  const handleSelectTargetLaw = (option: 'customs_act' | 'foreign_exchange_act' | 'foreign_exchange_rule') => {
     setTargetLawOption(option);
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
     const dd = String(now.getDate()).padStart(2, '0');
-    if (option === 'foreign_exchange') {
+    if (option === 'foreign_exchange_act') {
+      setCustomDriveFolderName(`외국환거래법_${yyyy}-${mm}-${dd}`);
+    } else if (option === 'foreign_exchange_rule') {
       setCustomDriveFolderName(`외국환거래규정_${yyyy}-${mm}-${dd}`);
     } else {
       setCustomDriveFolderName(`관세법_${yyyy}-${mm}-${dd}`);
@@ -204,9 +207,18 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
         throw new Error('Google OAuth 인증 토큰을 획득하지 못했습니다. 상단의 Google 계정 연결 버튼을 눌러 로그인해 주세요.');
       }
 
-      const isAdmrul = targetLawOption === 'foreign_exchange';
-      const lawName = isAdmrul ? '외국환거래규정' : (selectedRevision?.lawName || '관세법');
+      const isAdmrul = targetLawOption === 'foreign_exchange_rule';
+      let lawName = '관세법';
+      if (targetLawOption === 'foreign_exchange_act') {
+        lawName = '외국환거래법';
+      } else if (targetLawOption === 'foreign_exchange_rule') {
+        lawName = '외국환거래규정';
+      } else if (selectedRevision?.lawName) {
+        lawName = selectedRevision.lawName;
+      }
+
       const folderName = customDriveFolderName.trim() || `${lawName}_${new Date().toISOString().slice(0, 10)}`;
+      const limitCount = revisionScopeOption === 'all' ? 0 : parseInt(revisionScopeOption, 10);
 
       const res = await fetch('/api/drive/export-all-revisions-folder', {
         method: 'POST',
@@ -217,13 +229,16 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
           mode,
           lawName,
           lawCategory: isAdmrul ? 'admrul' : 'law',
-          limitCount: isAdmrul ? 10 : 0,
+          limitCount,
           folderName,
         }),
       });
 
       const data = await res.json();
       if (!res.ok || !data.success) {
+        if (data.authError) {
+          throw new Error(data.error || 'Google 계정 인증이 만료되었습니다. 상단 [Google 로그인]을 눌러 다시 로그인해 주세요.');
+        }
         throw new Error(data.error || 'Google Drive 폴더 저장 중 오류가 발생했습니다.');
       }
 
@@ -576,8 +591,10 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
             </div>
 
             <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2">
-              {targetLawOption === 'foreign_exchange' ? (
-                <>📜 외국환거래규정 (행정규칙/고시 10개) Google Drive 저장</>
+              {targetLawOption === 'foreign_exchange_rule' ? (
+                <>📜 외국환거래규정 (행정규칙/고시 전체 45회 연혁) Google Drive 저장</>
+              ) : targetLawOption === 'foreign_exchange_act' ? (
+                <>⚖️ 외국환거래법 (법률 전체 45회 개정연혁) Google Drive 저장</>
               ) : (
                 <>🏛️ 관세법 전체 140회 개정연혁 Google Drive 저장</>
               )}
@@ -617,19 +634,76 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
             }`}
           >
             <History className="w-4 h-4" />
-            <span>🏛️ 관세법 (전체 140회 개정연혁)</span>
+            <span>🏛️ 관세법 (140회 연혁)</span>
           </button>
           <button
-            onClick={() => handleSelectTargetLaw('foreign_exchange')}
+            onClick={() => handleSelectTargetLaw('foreign_exchange_act')}
             className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              targetLawOption === 'foreign_exchange'
+              targetLawOption === 'foreign_exchange_act'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-transparent text-slate-400 hover:text-white hover:bg-slate-800/60'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>⚖️ 외국환거래법 (법률 45회 연혁)</span>
+          </button>
+          <button
+            onClick={() => handleSelectTargetLaw('foreign_exchange_rule')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              targetLawOption === 'foreign_exchange_rule'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'bg-transparent text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
             <FileText className="w-4 h-4" />
-            <span>📜 외국환거래규정 (행정규칙/고시 최근 10개 개정본)</span>
+            <span>📜 외국환거래규정 (고시 45회 연혁)</span>
           </button>
+        </div>
+
+        {/* Revision Scope Selector (전체 연혁 vs 최근 개정본) */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 bg-slate-900/90 border border-indigo-500/30 rounded-xl">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black text-indigo-300">📊 저장 범위 설정:</span>
+            <span className="text-[11px] text-slate-400">
+              {targetLawOption === 'customs_act'
+                ? '(관세법 제1회부터 제140회까지 전체 연혁 지원)'
+                : targetLawOption === 'foreign_exchange_act'
+                ? '(외국환거래법 1998년 제정부터 최신 개정까지 전체 45회 법률 연혁 지원)'
+                : '(외국환거래규정 1999년 제정부터 최신 개정까지 전체 45회 고시 연혁 지원)'}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
+            <button
+              onClick={() => setRevisionScopeOption('all')}
+              className={`px-3 py-1 rounded-md text-xs font-black transition-all cursor-pointer ${
+                revisionScopeOption === 'all'
+                  ? 'bg-emerald-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🌟 전체 연혁 저장 ({targetLawOption === 'customs_act' ? '전체 140회' : '전체 45회'})
+            </button>
+            <button
+              onClick={() => setRevisionScopeOption('10')}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                revisionScopeOption === '10'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              최근 10개
+            </button>
+            <button
+              onClick={() => setRevisionScopeOption('20')}
+              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all cursor-pointer ${
+                revisionScopeOption === '20'
+                  ? 'bg-indigo-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              최근 20개
+            </button>
+          </div>
         </div>
 
         {/* Main Drive Export Action Box */}
@@ -647,7 +721,17 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
                 </span>
               </div>
               <span className="text-xs text-indigo-300 font-mono font-bold bg-slate-900 px-3 py-1 rounded-md border border-slate-700">
-                {targetLawOption === 'foreign_exchange' ? '외국환거래규정 10개 개별 파일' : '관세법 전체 140개 개별 파일'}
+                {targetLawOption === 'customs_act'
+                  ? revisionScopeOption === 'all'
+                    ? '관세법 전체 140개 개별 파일'
+                    : `관세법 ${revisionScopeOption}개 개별 파일`
+                  : targetLawOption === 'foreign_exchange_act'
+                  ? revisionScopeOption === 'all'
+                    ? '외국환거래법 전체 45개 개별 파일'
+                    : `외국환거래법 ${revisionScopeOption}개 개별 파일`
+                  : revisionScopeOption === 'all'
+                  ? '외국환거래규정 전체 45개 개별 파일'
+                  : `외국환거래규정 ${revisionScopeOption}개 개별 파일`}
               </span>
             </div>
 
@@ -655,17 +739,31 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
               <h4 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
                 <span>📂 개정연혁 1개당 구글시트 파일 1개 저장</span>
                 <span className="text-xs text-amber-300 font-normal">
-                  ({targetLawOption === 'foreign_exchange' ? '10개 개정본 각각 별도 시트 생성' : '140개 개정본 각각 별도 시트 생성'})
+                  ({targetLawOption === 'customs_act'
+                    ? revisionScopeOption === 'all'
+                      ? '전체 140개 개정본 각각 별도 시트 생성'
+                      : `${revisionScopeOption}개 개정본 각각 별도 시트 생성`
+                    : targetLawOption === 'foreign_exchange_act'
+                    ? revisionScopeOption === 'all'
+                      ? '전체 45개 개정본 각각 별도 시트 생성'
+                      : `${revisionScopeOption}개 개정본 각각 별도 시트 생성`
+                    : revisionScopeOption === 'all'
+                    ? '전체 45개 개정본 각각 별도 시트 생성'
+                    : `${revisionScopeOption}개 개정본 각각 별도 시트 생성`})
                 </span>
               </h4>
               <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                {targetLawOption === 'foreign_exchange' ? (
+                {targetLawOption === 'customs_act' ? (
                   <>
-                    <strong>외국환거래규정</strong>의 최근 10개 개정본을 각각 1개의 독립된 Google Spreadsheet 문서로 생성하여 <strong>(외국환거래규정)+(날짜)</strong> Drive 폴더에 저장합니다. 각 시트마다 <strong>[개요 탭]</strong>과 <strong>[조문 목록 탭 (211개 이상 전체 조문 본문 전문 및 부칙)]</strong>이 완벽하게 저장됩니다.
+                    <strong>관세법</strong>의 {revisionScopeOption === 'all' ? '전체 140회' : `최근 ${revisionScopeOption}개`} 개정연혁을 각각 1개의 독립된 Google Spreadsheet 문서로 생성하여 <strong>(관세법)+(날짜)</strong> Drive 폴더에 분할 보관합니다. 각 시트마다 <strong>[개요 탭]</strong>과 <strong>[조문 목록 탭 (해당 개정본 본문 전문)]</strong>이 완벽하게 저장됩니다.
+                  </>
+                ) : targetLawOption === 'foreign_exchange_act' ? (
+                  <>
+                    <strong>외국환거래법</strong>의 {revisionScopeOption === 'all' ? '전체 45회' : `최근 ${revisionScopeOption}개`} 개정본을 각각 1개의 독립된 Google Spreadsheet 문서로 생성하여 <strong>(외국환거래법)+(날짜)</strong> Drive 폴더에 저장합니다. 각 시트마다 <strong>[개요 탭]</strong>과 <strong>[조문 목록 탭 (전체 조문 본문 전문 및 부칙)]</strong>이 완벽하게 저장됩니다.
                   </>
                 ) : (
                   <>
-                    <strong>관세법</strong>의 전체 140회 개정연혁을 각각 1개의 독립된 Google Spreadsheet 문서로 생성하여 <strong>(관세법)+(날짜)</strong> Drive 폴더에 분할 보관합니다. 각 시트마다 <strong>[개요 탭]</strong>과 <strong>[조문 목록 탭 (해당 개정본 본문 전문)]</strong>이 완벽하게 저장됩니다.
+                    <strong>외국환거래규정</strong>의 {revisionScopeOption === 'all' ? '전체 45회' : `최근 ${revisionScopeOption}개`} 개정본을 각각 1개의 독립된 Google Spreadsheet 문서로 생성하여 <strong>(외국환거래규정)+(날짜)</strong> Drive 폴더에 저장합니다. 각 시트마다 <strong>[개요 탭]</strong>과 <strong>[조문 목록 탭 (전체 조문 장·절·관 및 본문 전문·부칙)]</strong>이 완벽하게 저장됩니다.
                   </>
                 )}
               </p>
@@ -694,13 +792,39 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
               {isExportingAllToDrive && driveExportMode === 'separate_files' ? (
                 <>
                   <RefreshCw className="w-5 h-5 animate-spin text-indigo-200" />
-                  <span>개별 구글시트 파일 일괄 생성 및 본문 저장 중... ({targetLawOption === 'foreign_exchange' ? '외국환거래규정 10개' : '관세법 140개'})</span>
+                  <span>
+                    개별 구글시트 파일 일괄 생성 및 본문 저장 중... (
+                    {targetLawOption === 'customs_act'
+                      ? revisionScopeOption === 'all'
+                        ? '관세법 전체 140회'
+                        : `관세법 ${revisionScopeOption}개`
+                      : targetLawOption === 'foreign_exchange_act'
+                      ? revisionScopeOption === 'all'
+                        ? '외국환거래법 전체 45회'
+                        : `외국환거래법 ${revisionScopeOption}개`
+                      : revisionScopeOption === 'all'
+                      ? '외국환거래규정 전체 45회'
+                      : `외국환거래규정 ${revisionScopeOption}개`}
+                    )
+                  </span>
                 </>
               ) : (
                 <>
                   <FolderPlus className="w-5 h-5 text-indigo-200" />
                   <span>
-                    🚀 개정연혁 1개당 구글시트 파일 1개로 저장 ({targetLawOption === 'foreign_exchange' ? '외국환거래규정 10개 파일' : '관세법 140개 파일'})
+                    🚀 개정연혁 1개당 구글시트 파일 1개로 저장 (
+                    {targetLawOption === 'customs_act'
+                      ? revisionScopeOption === 'all'
+                        ? '관세법 전체 140개 개별 파일'
+                        : `관세법 ${revisionScopeOption}개 파일`
+                      : targetLawOption === 'foreign_exchange_act'
+                      ? revisionScopeOption === 'all'
+                        ? '외국환거래법 전체 45개 개별 파일'
+                        : `외국환거래법 ${revisionScopeOption}개 파일`
+                      : revisionScopeOption === 'all'
+                      ? '외국환거래규정 전체 45개 개별 파일'
+                      : `외국환거래규정 ${revisionScopeOption}개 파일`}
+                    )
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </>

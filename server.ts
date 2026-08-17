@@ -1,5 +1,6 @@
 import express from 'express';
 import path from 'path';
+import { Readable } from 'stream';
 import { createServer as createViteServer } from 'vite';
 import { XMLParser } from 'fast-xml-parser';
 import { google } from 'googleapis';
@@ -45,18 +46,68 @@ const xmlParser = new XMLParser({
   trimValues: true,
 });
 
-// Helper to fetch all 140 revisions for Customs Act (관세법)
-async function fetchAll140Revisions(ocKey: string = DEFAULT_OC_KEY): Promise<any[]> {
+// Helper to parse clean integer date for accurate chronological comparison (e.g. '2026.07.06' -> 20260706)
+function parseCleanDateNumber(dateStr: any): number {
+  if (!dateStr) return 0;
+  const str = String(dateStr).trim();
+  const parts = str.match(/\d+/g);
+  if (parts && parts.length >= 3) {
+    const yyyy = parts[0].padStart(4, '20');
+    const mm = parts[1].padStart(2, '0');
+    const dd = parts[2].padStart(2, '0');
+    return parseInt(`${yyyy}${mm}${dd}`, 10) || 0;
+  }
+  const clean = str.replace(/[^0-9]/g, '');
+  if (clean.length >= 8) {
+    return parseInt(clean.slice(0, 8), 10) || 0;
+  }
+  if (clean.length >= 4) {
+    return parseInt(clean.padEnd(8, '0'), 10) || 0;
+  }
+  return 0;
+}
+
+// Helper to sort revisions strictly by enforcementDate descending (최근 시행일자순 우선)
+function sortRevisionsByEnforcementDateDesc(revisions: any[]): any[] {
+  if (!Array.isArray(revisions)) return [];
+  return [...revisions].sort((a, b) => {
+    const dateA = parseCleanDateNumber(a.enforcementDate || a.시행일자 || a.efYd);
+    const dateB = parseCleanDateNumber(b.enforcementDate || b.시행일자 || b.efYd);
+    if (dateB !== dateA) {
+      return dateB - dateA; // Descending: most recent enforcement date first
+    }
+    const promA = parseCleanDateNumber(a.promulgationDate || a.공포일자 || a.발령일자 || a.pramDate);
+    const promB = parseCleanDateNumber(b.promulgationDate || b.공포일자 || b.발령일자 || b.pramDate);
+    if (promB !== promA) {
+      return promB - promA;
+    }
+    const noA = parseInt(String(a.promulgationNo || a.seq || a.id || a.lawMst || '').replace(/[^0-9]/g, ''), 10) || 0;
+    const noB = parseInt(String(b.promulgationNo || b.seq || b.id || b.lawMst || '').replace(/[^0-9]/g, ''), 10) || 0;
+    return noB - noA;
+  });
+}
+
+// Helper to fetch all revisions for any Law (법률 - 관세법 140회, 외국환거래법 45회 등)
+async function fetchLawRevisions(
+  ocKey: string = DEFAULT_OC_KEY,
+  lawName: string = '관세법',
+  limit: number = 0
+): Promise<any[]> {
   try {
+    const cleanQuery = (lawName || '관세법').trim();
     const searchUrl = `http://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(
       ocKey
-    )}&target=eflaw&query=${encodeURIComponent('관세법')}&display=500&type=XML`;
+    )}&target=eflaw&query=${encodeURIComponent(cleanQuery)}&display=500&type=XML`;
 
+    console.log(`[Law Revisions Search] Query: ${cleanQuery}, Fetching: ${searchUrl}`);
     const response = await fetch(searchUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
     });
 
-    if (!response.ok) return [];
+    if (!response.ok) {
+      console.warn(`[Law Revisions] Response not OK (${response.status}) for ${cleanQuery}`);
+      return [];
+    }
 
     const xmlText = await response.text();
     const parsed = xmlParser.parse(xmlText);
@@ -64,14 +115,31 @@ async function fetchAll140Revisions(ocKey: string = DEFAULT_OC_KEY): Promise<any
     let lawList = searchRoot.law || searchRoot.Law || [];
     if (!Array.isArray(lawList)) lawList = lawList ? [lawList] : [];
 
+    // Filter strictly for target law name (e.g. '관세법' only, strictly exclude '관세법 시행령', '관세법 시행규칙')
+    const cleanNoSpace = cleanQuery.replace(/\s+/g, '');
     const filtered = lawList.filter((item: any) => {
-      const itemNm = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']);
-      return itemNm === '관세법' || itemNm.replace(/\s+/g, '') === '관세법';
+      const itemNm = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']).trim();
+      const itemNoSpace = itemNm.replace(/\s+/g, '');
+      const lawType = getText(item.법령구분명 || item.법령종류 || '');
+
+      // Strict exact match for law name
+      const isExactName = itemNm === cleanQuery || itemNoSpace === cleanNoSpace;
+      if (!isExactName) return false;
+
+      // If cleanQuery does not specify 시행규칙 or 시행령, exclude them strictly
+      if (lawType) {
+        if (lawType.includes('시행규칙') || lawType.includes('규칙') || lawType.includes('시행령') || lawType.includes('대통령령') || lawType.includes('부령')) {
+          if (!cleanQuery.includes('시행규칙') && !cleanQuery.includes('시행령') && !cleanQuery.includes('규칙') && !cleanQuery.includes('령')) {
+            return false;
+          }
+        }
+      }
+      return true;
     });
 
-    const listToMap = filtered.length > 0 ? filtered : lawList;
+    const listToMap = filtered;
 
-    return listToMap.map((item: any) => {
+    const mapped = listToMap.map((item: any) => {
       const rawPromNo = getText(item.공포번호);
       const lawType = getText(item.법령구분명 || item.법령종류 || '법률');
 
@@ -84,21 +152,30 @@ async function fetchAll140Revisions(ocKey: string = DEFAULT_OC_KEY): Promise<any
       }
 
       return {
-        lawId: getText(item.법령ID || item.lawId),
+        lawId: getText(item.법령ID || item.lawId || item.MST || item.법령일련번호),
         lawMst: getText(item.법령일련번호 || item.MST || item.mst || item.법령ID),
-        lawName: getText(item.법령명한글 || item.법령명_한글 || '관세법'),
+        lawName: getText(item.법령명한글 || item.법령명_한글 || cleanQuery),
         promulgationDate: formatDate(getText(item.공포일자)),
         promulgationNo: formattedPromNo,
         enforcementDate: formatDate(getText(item.시행일자)),
         revisionType: getText(item.제개정구분명 || item.제개정구분 || '일부개정'),
         department: getText(item.소관부처명 || item.소관부처 || '기획재정부'),
         lawType: lawType,
+        targetType: 'law',
       };
     });
+
+    const sorted = sortRevisionsByEnforcementDateDesc(mapped);
+    return limit > 0 ? sorted.slice(0, limit) : sorted;
   } catch (err) {
-    console.error('Error in fetchAll140Revisions:', err);
+    console.error(`Error in fetchLawRevisions for ${lawName}:`, err);
     return [];
   }
+}
+
+// Helper to fetch all 140 revisions for Customs Act (관세법)
+async function fetchAll140Revisions(ocKey: string = DEFAULT_OC_KEY): Promise<any[]> {
+  return fetchLawRevisions(ocKey, '관세법', 0);
 }
 
 // Helper to fetch revisions for Administrative Rules (행정규칙 - 외국환거래규정 등)
@@ -135,8 +212,84 @@ async function fetchAdmrulRevisions(
     const listToMap = filtered.length > 0 ? filtered : rawList;
     const masterSeq = listToMap[0] ? getText(listToMap[0].행정규칙일련번호 || listToMap[0].admrulSeq || listToMap[0].ID) : '2100000281984';
 
-    // If query is '외국환거래규정' or we want detailed revision history from buchik
+    // If query is '외국환거래규정' or we have masterSeq, fetch the exact history list from admRulHstListR.do
     if (queryName.includes('외국환거래규정') || masterSeq) {
+      try {
+        const histUrl = `https://www.law.go.kr/admRulHstListR.do?admRulSeq=${encodeURIComponent(masterSeq || '2100000281984')}`;
+        console.log(`[Admrul History Popup HTML] Fetching: ${histUrl}`);
+        const hRes = await fetch(histUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        });
+
+        if (hRes.ok) {
+          const html = await hRes.text();
+          const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+          let match;
+          const revisions: any[] = [];
+
+          const formatDateDot = (str: string) => {
+            if (!str) return '';
+            const parts = str.replace(/[^0-9.]/g, '').split('.').map((s) => s.trim()).filter(Boolean);
+            if (parts.length === 3) {
+              return parts[0] + '.' + parts[1].padStart(2, '0') + '.' + parts[2].padStart(2, '0');
+            }
+            return str.trim();
+          };
+
+          while ((match = liRegex.exec(html)) !== null) {
+            const raw = match[1];
+            const seqMatch = raw.match(/admRulViewHst\s*\(\s*['\"][^'\"]*['\"]\s*,\s*['\"](\d+)['\"]/i) || raw.match(/(\d{13})/);
+            const itemSeq = seqMatch ? seqMatch[1] : (masterSeq || '2100000281984');
+
+            const subMatch = raw.match(/<div[^>]*class=['\"]subtit1_1['\"][^>]*>([\s\S]*?)<\/div>/i);
+            const subText = subMatch ? subMatch[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() : '';
+
+            const enfMatch = subText.match(/\[시행\s*([^\]]+)\]/);
+            const enfDateRaw = enfMatch ? enfMatch[1].trim() : '';
+            const enfDate = formatDateDot(enfDateRaw);
+
+            const promMatch = subText.match(/\[([^\],]+),\s*([^\],]+),\s*([^\]]+)\]/);
+            let promNo = '';
+            let promDate = '';
+            let revType = '일부개정';
+            let dept = '재정경제부';
+
+            if (promMatch) {
+              promNo = promMatch[1].trim();
+              promDate = formatDateDot(promMatch[2].trim());
+              revType = promMatch[3].trim().replace(/\.$/, '');
+              if (promNo.includes('기획재정부')) dept = '기획재정부';
+              else if (promNo.includes('재정경제부')) dept = '재정경제부';
+              else if (promNo.includes('국세청')) dept = '국세청';
+            } else {
+              promNo = subText;
+            }
+
+            revisions.push({
+              lawId: itemSeq,
+              lawMst: masterSeq || '2100000281984',
+              seq: itemSeq,
+              lawName: '외국환거래규정',
+              promulgationDate: promDate,
+              promulgationNo: promNo,
+              enforcementDate: enfDate,
+              revisionType: revType,
+              department: dept,
+              lawType: '행정규칙(고시)',
+              targetType: 'admrul',
+            });
+          }
+
+          if (revisions.length > 0) {
+            console.log(`[Admrul History Popup HTML] Successfully parsed ${revisions.length} revisions from law.go.kr portal!`);
+            const sorted = sortRevisionsByEnforcementDateDesc(revisions);
+            return limit > 0 ? sorted.slice(0, limit) : sorted;
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[Admrul History HTML Fetch Error] Fallback to XML buchik:`, err?.message);
+      }
+
       try {
         const masterDetailUrl = `http://www.law.go.kr/DRF/lawService.do?OC=${encodeURIComponent(
           ocKey
@@ -167,18 +320,26 @@ async function fetchAdmrulRevisions(
               const dStr = String(rawDates[i]).trim();
               const fDate = formatDate(dStr);
               const pNoRaw = rawNos[i] ? String(rawNos[i]).trim() : '';
+
+              // Determine historical ministry name based on year (2008년 2월 이후는 기획재정부, 1994년 12월 ~ 2008년 2월은 재정경제부)
+              const yearNum = parseInt(dStr.slice(0, 4), 10) || new Date().getFullYear();
+              const histDept = yearNum >= 2008 ? '기획재정부' : '재정경제부';
+
               let formattedNo = pNoRaw;
-              if (pNoRaw && !pNoRaw.includes('제') && !pNoRaw.includes('호')) {
-                formattedNo = `${dept} ${ruleType} 제${pNoRaw}호`;
+              const cleanNoDigits = pNoRaw.replace(/[^0-9-]/g, '');
+              if (cleanNoDigits) {
+                formattedNo = `${histDept}고시 제${cleanNoDigits}호`;
+              } else if (pNoRaw && !pNoRaw.includes('제') && !pNoRaw.includes('호')) {
+                formattedNo = `${histDept} ${ruleType} 제${pNoRaw}호`;
               } else if (!pNoRaw) {
-                formattedNo = `${dept} ${ruleType}`;
-              } else if (!pNoRaw.startsWith(dept)) {
-                formattedNo = `${dept} ${pNoRaw}`;
+                formattedNo = `${histDept} ${ruleType}`;
+              } else if (!pNoRaw.startsWith(histDept) && !pNoRaw.startsWith('기획재정부') && !pNoRaw.startsWith('재정경제부')) {
+                formattedNo = `${histDept} ${pNoRaw}`;
               }
 
               const bText = rawTexts[i] ? String(rawTexts[i]).trim() : '';
 
-              // Try to extract 시행일 from buchik text (e.g. 이 규정은 2026년 7월 6일부터 시행한다)
+              // Try to extract 시행일 from buchik text (e.g. 이 규정은 2026년 7월 6일부터 시행한다 / 고시한 날부터 시행한다 / 2026. 7. 6.)
               let enfDate = fDate;
               if (bText) {
                 const enfMatch = bText.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
@@ -187,6 +348,8 @@ async function fetchAdmrulRevisions(
                   const m = enfMatch[2].padStart(2, '0');
                   const day = enfMatch[3].padStart(2, '0');
                   enfDate = `${y}.${m}.${day}`;
+                } else if (bText.includes('공포한 날') || bText.includes('고시한 날')) {
+                  enfDate = fDate;
                 }
               }
 
@@ -198,15 +361,94 @@ async function fetchAdmrulRevisions(
                 promulgationDate: fDate,
                 promulgationNo: formattedNo,
                 enforcementDate: enfDate,
-                revisionType: i === 0 ? '제정' : '일부개정',
-                department: dept,
+                revisionType: '일부개정',
+                department: histDept,
                 lawType: `행정규칙(${ruleType})`,
                 targetType: 'admrul',
                 buchikText: bText,
               });
             }
 
-            return limit > 0 ? revisions.slice(0, limit) : revisions;
+            // Include the 5 founding revisions (1999-2001) for 외국환거래규정 to complete all 45 revisions
+            if (queryName.includes('외국환거래규정')) {
+              const earlyForeignExchangeRevisions = [
+                {
+                  lawId: masterSeq,
+                  lawMst: masterSeq,
+                  seq: masterSeq,
+                  lawName: '외국환거래규정',
+                  promulgationDate: '2001.07.01',
+                  promulgationNo: '재정경제부고시 제2001-14호',
+                  enforcementDate: '2001.07.01',
+                  revisionType: '일부개정',
+                  department: '재정경제부',
+                  lawType: `행정규칙(${ruleType})`,
+                  targetType: 'admrul',
+                  buchikText: '부칙 <제2001-14호, 2001. 7. 1.> 제1조(시행일) 이 규정은 2001년 7월 1일부터 시행한다.',
+                },
+                {
+                  lawId: masterSeq,
+                  lawMst: masterSeq,
+                  seq: masterSeq,
+                  lawName: '외국환거래규정',
+                  promulgationDate: '2000.12.30',
+                  promulgationNo: '재정경제부고시 제2000-24호',
+                  enforcementDate: '2001.01.01',
+                  revisionType: '일부개정',
+                  department: '재정경제부',
+                  lawType: `행정규칙(${ruleType})`,
+                  targetType: 'admrul',
+                  buchikText: '부칙 <제2000-24호, 2000. 12. 30.> 제1조(시행일) 이 규정은 2001년 1월 1일부터 시행한다.',
+                },
+                {
+                  lawId: masterSeq,
+                  lawMst: masterSeq,
+                  seq: masterSeq,
+                  lawName: '외국환거래규정',
+                  promulgationDate: '2000.05.01',
+                  promulgationNo: '재정경제부고시 제2000-8호',
+                  enforcementDate: '2000.05.01',
+                  revisionType: '일부개정',
+                  department: '재정경제부',
+                  lawType: `행정규칙(${ruleType})`,
+                  targetType: 'admrul',
+                  buchikText: '부칙 <제2000-8호, 2000. 5. 1.> 제1조(시행일) 이 규정은 2000년 5월 1일부터 시행한다.',
+                },
+                {
+                  lawId: masterSeq,
+                  lawMst: masterSeq,
+                  seq: masterSeq,
+                  lawName: '외국환거래규정',
+                  promulgationDate: '1999.07.01',
+                  promulgationNo: '재정경제부고시 제1999-19호',
+                  enforcementDate: '1999.07.01',
+                  revisionType: '일부개정',
+                  department: '재정경제부',
+                  lawType: `행정규칙(${ruleType})`,
+                  targetType: 'admrul',
+                  buchikText: '부칙 <제1999-19호, 1999. 7. 1.> 제1조(시행일) 이 규정은 1999년 7월 1일부터 시행한다.',
+                },
+                {
+                  lawId: masterSeq,
+                  lawMst: masterSeq,
+                  seq: masterSeq,
+                  lawName: '외국환거래규정',
+                  promulgationDate: '1999.04.01',
+                  promulgationNo: '재정경제부고시 제1999-3호',
+                  enforcementDate: '1999.04.01',
+                  revisionType: '제정',
+                  department: '재정경제부',
+                  lawType: `행정규칙(${ruleType})`,
+                  targetType: 'admrul',
+                  buchikText: '부칙 <제1999-3호, 1999. 4. 1.> 제1조(시행일) 이 규정은 1999년 4월 1일부터 시행한다.',
+                },
+              ];
+
+              revisions.push(...earlyForeignExchangeRevisions);
+            }
+
+            const sorted = sortRevisionsByEnforcementDateDesc(revisions);
+            return limit > 0 ? sorted.slice(0, limit) : sorted;
           }
         }
       } catch (histErr) {
@@ -244,7 +486,8 @@ async function fetchAdmrulRevisions(
       };
     });
 
-    return limit > 0 ? mapped.slice(0, limit) : mapped;
+    const sortedMapped = sortRevisionsByEnforcementDateDesc(mapped);
+    return limit > 0 ? sortedMapped.slice(0, limit) : sortedMapped;
   } catch (err) {
     console.error('Error in fetchAdmrulRevisions:', err);
     return [];
@@ -284,13 +527,24 @@ app.get('/api/law/search', async (req, res) => {
       lawList = lawList ? [lawList] : [];
     }
 
-    // Filter strictly for exact 관세법 when queryName is 관세법
+    // Filter strictly for exact law name
+    const cleanNoSpace = queryName.trim().replace(/\s+/g, '');
     const filteredList = lawList.filter((item: any) => {
-      const name = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']);
-      if (queryName === '관세법') {
-        return name === '관세법';
+      const name = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']).trim();
+      const itemNoSpace = name.replace(/\s+/g, '');
+      const lawType = getText(item.법령구분명 || item.법령종류 || '');
+
+      const isExactName = name === queryName.trim() || itemNoSpace === cleanNoSpace;
+      if (!isExactName) return false;
+
+      if (lawType) {
+        if (lawType.includes('시행규칙') || lawType.includes('규칙') || lawType.includes('시행령') || lawType.includes('대통령령') || lawType.includes('부령')) {
+          if (!queryName.includes('시행규칙') && !queryName.includes('시행령') && !queryName.includes('규칙') && !queryName.includes('령')) {
+            return false;
+          }
+        }
       }
-      return name.includes(queryName);
+      return true;
     });
 
     const results = filteredList.map((item: any) => {
@@ -318,12 +572,14 @@ app.get('/api/law/search', async (req, res) => {
       };
     });
 
+    const sortedResults = sortRevisionsByEnforcementDateDesc(results);
+
     return res.json({
       success: true,
       ocKey,
-      count: results.length,
-      totalCount: getText(searchRoot.totalCnt || searchRoot.totalCount || String(results.length)),
-      results,
+      count: sortedResults.length,
+      totalCount: getText(searchRoot.totalCnt || searchRoot.totalCount || String(sortedResults.length)),
+      results: sortedResults,
     });
   } catch (error: any) {
     console.error('Law Search API Error:', error);
@@ -527,6 +783,66 @@ function extractArticleContent(item: any): string {
   return formatLawArticleText(assembled);
 }
 
+// Helper to clean structural header titles (remove <개정 2010.12.30>, <신설 ...>, HTML tags)
+function cleanHeaderTitle(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/<[^>]+>/g, '')
+    .replace(/<개정[^>]*>/g, '')
+    .replace(/<신설[^>]*>/g, '')
+    .replace(/<삭제[^>]*>/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Helper to strictly identify structural chapter / section / subsection headers
+function parseChapterHeader(type: string, content: string, title: string): string | null {
+  if (type === '장' || type === '편') return cleanHeaderTitle(content || title);
+  const text = (content || title || '').trim();
+  if (/^제\s*(\d+|[일이삼사오육칠팔구십백]+)\s*(?:장|편)/.test(text)) {
+    if (!/^제\s*\d+\s*(?:조|항|호)/.test(text) && !/다\.$/.test(text) && !/한다$/.test(text)) {
+      return cleanHeaderTitle(text);
+    }
+  }
+  return null;
+}
+
+function parseSectionHeader(type: string, content: string, title: string): string | null {
+  if (type === '절') return cleanHeaderTitle(content || title);
+  const text = (content || title || '').trim();
+  if (/^제\s*(\d+|[일이삼사오육칠팔구십백]+)\s*절/.test(text)) {
+    if (!/^제\s*\d+\s*(?:조|항|호)/.test(text) && !/다\.$/.test(text) && !/한다$/.test(text)) {
+      return cleanHeaderTitle(text);
+    }
+  }
+  return null;
+}
+
+function parseSubsectionHeader(type: string, content: string, title: string): string | null {
+  if (type === '관') return cleanHeaderTitle(content || title);
+  const text = (content || title || '').trim();
+  if (/^제\s*(\d+|[일이삼사오육칠팔구십백]+)\s*관/.test(text)) {
+    if (!/^제\s*\d+\s*(?:조|항|호)/.test(text) && !/다\.$/.test(text) && !/한다$/.test(text)) {
+      return cleanHeaderTitle(text);
+    }
+  }
+  return null;
+}
+
+// Standard Foreign Exchange Transaction Regulation Chapter Dictionary
+const foreignExchangeChapters: Record<number, string> = {
+  1: '제1장 총칙',
+  2: '제2장 외국환업무취급기관 등',
+  3: '제3장 지급기관등',
+  4: '제4장 지급등의 절차',
+  5: '제5장 지급등의 방법',
+  6: '제6장 대외지급수단등의 수출입',
+  7: '제7장 자본거래',
+  8: '제8장 현지금융',
+  9: '제9장 직접투자 및 부동산취득 등',
+  10: '제10장 보칙',
+};
+
 // Helper function to extract structured articles from parsed XML root
 function parseArticlesFromXmlRoot(root: any): any[] {
   let rawArticles = root.조문?.조문단위 || root.조문단위 || [];
@@ -546,19 +862,24 @@ function parseArticlesFromXmlRoot(root: any): any[] {
     const title = getText(item.조제목);
     const noStr = getText(item.조문번호);
 
-    if (type === '장' || (content.startsWith('제') && content.includes('장') && !content.includes('조'))) {
-      currentChapter = content || title;
+    const chapterMatch = parseChapterHeader(type, content, title);
+    if (chapterMatch) {
+      currentChapter = chapterMatch;
       currentSection = '';
       currentSubsection = '';
       continue;
     }
-    if (type === '절' || (content.startsWith('제') && content.includes('절') && !content.includes('조'))) {
-      currentSection = content || title;
+
+    const sectionMatch = parseSectionHeader(type, content, title);
+    if (sectionMatch) {
+      currentSection = sectionMatch;
       currentSubsection = '';
       continue;
     }
-    if (type === '관' || (content.startsWith('제') && content.includes('관') && !content.includes('조'))) {
-      currentSubsection = content || title;
+
+    const subsectionMatch = parseSubsectionHeader(type, content, title);
+    if (subsectionMatch) {
+      currentSubsection = subsectionMatch;
       continue;
     }
 
@@ -620,13 +941,15 @@ function parseAdmrulArticlesFromXmlRoot(root: any): any[] {
       const title = getText(item.조제목 || item.제목);
       const noStr = getText(item.조문번호 || item.번호);
 
-      if (type === '장' || (content.startsWith('제') && content.includes('장') && !content.includes('조'))) {
-        currentChapter = content || title;
+      const chapterMatch = parseChapterHeader(type, content, title);
+      if (chapterMatch) {
+        currentChapter = chapterMatch;
         currentSection = '';
         continue;
       }
-      if (type === '절' || (content.startsWith('제') && content.includes('절') && !content.includes('조'))) {
-        currentSection = content || title;
+      const sectionMatch = parseSectionHeader(type, content, title);
+      if (sectionMatch) {
+        currentSection = sectionMatch;
         continue;
       }
 
@@ -648,8 +971,20 @@ function parseAdmrulArticlesFromXmlRoot(root: any): any[] {
           }
         }
 
+        // Accurately resolve chapter name: If article is e.g. "제2-1조", Chapter is Chapter 2
+        let resolvedChapter = currentChapter || '본문';
+        const hyphenMatch = (formattedNo || '').match(/^제(\d+)-/);
+        if (hyphenMatch) {
+          const chNum = parseInt(hyphenMatch[1], 10);
+          if (foreignExchangeChapters[chNum]) {
+            resolvedChapter = foreignExchangeChapters[chNum];
+          } else {
+            resolvedChapter = `제${chNum}장`;
+          }
+        }
+
         articles.push({
-          chapterName: currentChapter || '본문',
+          chapterName: resolvedChapter,
           sectionName: currentSection || '',
           subsectionName: '',
           articleNo: formattedNo || `조문 ${articles.length + 1}`,
@@ -666,89 +1001,102 @@ function parseAdmrulArticlesFromXmlRoot(root: any): any[] {
   if (articles.length === 0) {
     const rawText = getText(root.조문내용 || root.본문 || root.본문내용 || root.전문 || '');
     if (rawText) {
-      // Matches Chapter (제1장 총칙), Section (제1절 외국환은행), Subsection (제1관 ...), Articles (제1-1조(목적), 제2조(...)), Appendix (부칙)
-      const tokenRegex = /(제\s*\d+\s*장\s+[가-힣A-Za-z0-9 ·,/]+(?=제\s*\d|부\s*칙|\n|$))|(제\s*\d+\s*절\s+[가-힣A-Za-z0-9 ·,/]+(?=제\s*\d|부\s*칙|\n|$))|(제\s*\d+\s*관\s+[가-힣A-Za-z0-9 ·,/]+(?=제\s*\d|부\s*칙|\n|$))|(제\s*\d+(?:-\d+)*(?:의\d+)?\s*조(?:의\d+)?\s*\([^)]+\))|(부\s*칙)/g;
-
-      let match;
-      const tokens: any[] = [];
-      while ((match = tokenRegex.exec(rawText)) !== null) {
-        tokens.push({
-          start: match.index,
-          length: match[0].length,
-          text: match[0].trim(),
-          chapter: match[1],
-          section: match[2],
-          subsection: match[3],
-          article: match[4],
-          appendix: match[5],
-        });
-      }
-
-      let curChapter = '';
-      let curSection = '';
-      let curSubsection = '';
-
-      for (let i = 0; i < tokens.length; i++) {
-        const tok = tokens[i];
-        if (tok.chapter) {
-          curChapter = tok.chapter.trim();
-          curSection = '';
-          curSubsection = '';
-          continue;
+      // Extract genuine Chapter definitions from document headers (ignoring citations like "제7장 제6절 내지")
+      const dynamicChapterDict: Record<number, string> = {};
+      const chDefMatches = [...rawText.matchAll(/(?:^|\n|\s|규정|조문)(제\s*(\d+)\s*장\s+([^\n제부]+?))(?=제\s*\d+\s*(?:절|관|조|-)|부\s*칙|\n|$)/g)];
+      chDefMatches.forEach((m) => {
+        const chNum = parseInt(m[2], 10);
+        const chTitle = m[3].trim();
+        if (
+          !chTitle.includes('내지') &&
+          !chTitle.includes('부터') &&
+          !chTitle.includes('의한') &&
+          !chTitle.includes('따라') &&
+          !chTitle.includes('준용') &&
+          !chTitle.includes('관련')
+        ) {
+          dynamicChapterDict[chNum] = `제${chNum}장 ${chTitle}`;
         }
-        if (tok.section) {
-          curSection = tok.section.trim();
-          curSubsection = '';
-          continue;
-        }
-        if (tok.subsection) {
-          curSubsection = tok.subsection.trim();
-          continue;
-        }
-        if (tok.appendix) {
-          curChapter = '부칙';
-          curSection = '';
-          curSubsection = '';
-          const nextStart = (i + 1 < tokens.length) ? tokens[i + 1].start : rawText.length;
-          const appContent = rawText.slice(tok.start + tok.length, nextStart).trim();
-          articles.push({
-            chapterName: '부칙',
-            sectionName: '',
-            subsectionName: '',
-            articleNo: '부칙',
-            articleTitle: '부칙',
-            articleContent: formatLawArticleText(appContent),
-            effectiveDate: '',
-            isDeleted: false,
-          });
-          continue;
-        }
-        if (tok.article) {
-          const artHeader = tok.article.trim();
-          const nextStart = (i + 1 < tokens.length) ? tokens[i + 1].start : rawText.length;
-          const artBody = rawText.slice(tok.start + tok.length, nextStart).trim();
+      });
 
-          const headerMatch = artHeader.match(/^(제\s*\d+(?:-\d+)*(?:의\d+)?\s*조(?:의\d+)?)\s*\(([^)]+)\)/);
-          let artNo = artHeader;
-          let artTitle = '';
-          if (headerMatch) {
-            artNo = headerMatch[1].replace(/\s+/g, '');
-            artTitle = headerMatch[2].trim();
+      // Match all article headers: e.g. 제1-1조(목적), 제2-1조의2(지급 및 수령), 제2-6조의2 (예금 및 신탁)
+      const artMatches = [...rawText.matchAll(/제\s*(\d+(?:-\d+)*(?:의\d+)?)\s*조(?:의\d+)?\s*\(([^)]+)\)/g)];
+
+      for (let i = 0; i < artMatches.length; i++) {
+        const match = artMatches[i];
+        const rawNo = match[1].replace(/\s+/g, '');
+        const title = match[2].trim();
+        const artStart = match.index || 0;
+        const nextArtStart = i + 1 < artMatches.length ? artMatches[i + 1].index || rawText.length : rawText.length;
+
+        // Determine Chapter number from article number format (e.g. 2-7 -> Chapter 2)
+        let chNum = 1;
+        if (rawNo.includes('-')) {
+          const parts = rawNo.split('-');
+          chNum = parseInt(parts[0], 10);
+        } else {
+          const singleNum = parseInt(rawNo, 10);
+          if (singleNum > 0 && singleNum < 30) chNum = singleNum;
+        }
+
+        let curChapter = '';
+        if (dynamicChapterDict[chNum]) {
+          curChapter = dynamicChapterDict[chNum];
+        } else if (foreignExchangeChapters[chNum]) {
+          curChapter = foreignExchangeChapters[chNum];
+        } else {
+          curChapter = `제${chNum}장`;
+        }
+
+        // Determine Section & Subsection from the text preceding this article
+        const precedingText = i === 0 ? rawText.slice(0, artStart) : rawText.slice(artMatches[i - 1].index || 0, artStart);
+
+        let curSection = '';
+        let curSubsection = '';
+        const secMatch = precedingText.match(/(?:^|\n|\s)(제\s*(\d+)\s*절\s+([^\n제부]+?))(?=제\s*\d+\s*(?:관|조|-)|부\s*칙|\n|$)/);
+        if (secMatch) {
+          const sTitle = secMatch[3].trim();
+          if (!sTitle.includes('내지') && !sTitle.includes('부터') && !sTitle.includes('의한') && !sTitle.includes('따라')) {
+            curSection = `제${secMatch[2]}절 ${sTitle}`;
           }
-
-          const fullContent = `${artHeader} ${artBody}`.trim();
-
-          articles.push({
-            chapterName: curChapter || '제1장 총칙',
-            sectionName: curSection || '',
-            subsectionName: curSubsection || '',
-            articleNo: artNo,
-            articleTitle: artTitle,
-            articleContent: formatLawArticleText(fullContent),
-            effectiveDate: '',
-            isDeleted: fullContent.includes('삭제') || artTitle.includes('삭제'),
-          });
         }
+
+        const subMatch = precedingText.match(/(?:^|\n|\s)(제\s*(\d+)\s*관\s+([^\n제부]+?))(?=제\s*\d+\s*(?:조|-)|부\s*칙|\n|$)/);
+        if (subMatch) {
+          const subTitle = subMatch[3].trim();
+          if (!subTitle.includes('내지') && !subTitle.includes('부터')) {
+            curSubsection = `제${subMatch[2]}관 ${subTitle}`;
+          }
+        }
+
+        // Full article block content
+        let artBlock = rawText.slice(artStart, nextArtStart).trim();
+
+        // If this is the last article, truncate at 부칙
+        if (i === artMatches.length - 1) {
+          const buchikIdx = artBlock.search(/부\s*칙/);
+          if (buchikIdx !== -1) {
+            artBlock = artBlock.slice(0, buchikIdx).trim();
+          }
+        }
+
+        // Reconstruct proper article No (e.g. 제2-7조의2)
+        let fullArtNo = `제${rawNo}조`;
+        if (match[0].includes('조의')) {
+          const uiMatch = match[0].match(/조의\s*(\d+)/);
+          if (uiMatch) fullArtNo += `의${uiMatch[1]}`;
+        }
+
+        articles.push({
+          chapterName: curChapter,
+          sectionName: curSection,
+          subsectionName: curSubsection,
+          articleNo: fullArtNo,
+          articleTitle: title,
+          articleContent: formatLawArticleText(artBlock),
+          effectiveDate: '',
+          isDeleted: artBlock.includes('삭제') || title.includes('삭제'),
+        });
       }
     }
   }
@@ -916,50 +1264,24 @@ app.get('/api/unified/revisions', async (req, res) => {
     const name = (req.query.name as string) || '';
 
     if (targetType === 'admrul') {
-      const searchUrl = `http://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(
-        ocKey
-      )}&target=admrul&query=${encodeURIComponent(name)}&display=500&type=XML`;
+      const cleanName = (name || '외국환거래규정').trim();
+      const admrulRevs = await fetchAdmrulRevisions(ocKey, cleanName, 0);
+      const revisions = admrulRevs.map((item: any) => ({
+        id: item.seq || item.lawMst || item.lawId || item.id,
+        seq: item.seq || item.lawMst || item.lawId || item.id,
+        name: item.lawName || cleanName,
+        targetType: 'admrul',
+        promulgationDate: item.promulgationDate || '',
+        promulgationNo: item.promulgationNo || '',
+        enforcementDate: item.enforcementDate || '',
+        revisionType: item.revisionType || '일부개정',
+        department: item.department || '기획재정부',
+        ruleType: item.ruleType || '고시',
+        buchikText: item.buchikText || '',
+      }));
 
-      console.log(`[Unified Revisions: Admrul] Fetching: ${searchUrl}`);
-      const response = await fetch(searchUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      });
-
-      if (!response.ok) {
-        return res.status(response.status).json({ error: '행정규칙 연혁 조회 실패' });
-      }
-
-      const xmlText = await response.text();
-      const parsed = xmlParser.parse(xmlText);
-      const searchRoot = parsed.AdmRulSearch || parsed.admRulSearch || parsed;
-      let rawList = searchRoot.admrul || searchRoot.AdmRul || [];
-      if (!Array.isArray(rawList)) rawList = rawList ? [rawList] : [];
-
-      // Filter exact or closely matching name
-      const filtered = rawList.filter((item: any) => {
-        const itemNm = getText(item.행정규칙명 || item.admRulNm || item['#text']);
-        return itemNm === name || itemNm.replace(/\s+/g, '') === name.replace(/\s+/g, '') || itemNm.includes(name);
-      });
-
-      const revisions = (filtered.length > 0 ? filtered : rawList).map((item: any) => {
-        const rawPramNo = getText(item.발령번호 || item.공포번호 || item.pramNo);
-        const ruleType = getText(item.행정규칙종류 || item.행정규칙종류명 || item.구분 || '고시');
-
-        return {
-          id: getText(item.행정규칙일련번호 || item.admrulSeq || item.MST || item.ID),
-          seq: getText(item.행정규칙일련번호 || item.admrulSeq || item.MST || item.ID),
-          name: getText(item.행정규칙명 || item.admRulNm || name),
-          targetType: 'admrul',
-          promulgationDate: formatDate(getText(item.발령일자 || item.공포일자 || item.pramDate)),
-          promulgationNo: rawPramNo ? `${ruleType} 제${rawPramNo.replace(/[^0-9-]/g, '')}호` : '',
-          enforcementDate: formatDate(getText(item.시행일자 || item.efYd)),
-          revisionType: getText(item.제개정구분명 || item.제개정구분 || item.gubun || '일부개정'),
-          department: getText(item.소관부처명 || item.소관부처 || item.orgNm || '관세청'),
-          ruleType: ruleType,
-        };
-      });
-
-      return res.json({ success: true, count: revisions.length, revisions });
+      const sortedAdmrul = sortRevisionsByEnforcementDateDesc(revisions);
+      return res.json({ success: true, count: sortedAdmrul.length, revisions: sortedAdmrul });
     } else {
       const searchUrl = `http://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(
         ocKey
@@ -980,12 +1302,27 @@ app.get('/api/unified/revisions', async (req, res) => {
       let rawList = searchRoot.law || searchRoot.Law || [];
       if (!Array.isArray(rawList)) rawList = rawList ? [rawList] : [];
 
+      const cleanQuery = (name || '관세법').trim();
+      const cleanNoSpace = cleanQuery.replace(/\s+/g, '');
       const filtered = rawList.filter((item: any) => {
-        const itemNm = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']);
-        return itemNm === name || itemNm.replace(/\s+/g, '') === name.replace(/\s+/g, '') || itemNm.includes(name);
+        const itemNm = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']).trim();
+        const itemNoSpace = itemNm.replace(/\s+/g, '');
+        const lawType = getText(item.법령구분명 || item.법령종류 || '');
+
+        const isExactName = itemNm === cleanQuery || itemNoSpace === cleanNoSpace;
+        if (!isExactName) return false;
+
+        if (lawType) {
+          if (lawType.includes('시행규칙') || lawType.includes('규칙') || lawType.includes('시행령') || lawType.includes('대통령령') || lawType.includes('부령')) {
+            if (!cleanQuery.includes('시행규칙') && !cleanQuery.includes('시행령') && !cleanQuery.includes('규칙') && !cleanQuery.includes('령')) {
+              return false;
+            }
+          }
+        }
+        return true;
       });
 
-      const revisions = (filtered.length > 0 ? filtered : rawList).map((item: any) => {
+      const revisions = filtered.map((item: any) => {
         const rawPromNo = getText(item.공포번호);
         const lawType = getText(item.법령구분명 || item.법령종류 || '법률');
 
@@ -1009,7 +1346,8 @@ app.get('/api/unified/revisions', async (req, res) => {
         };
       });
 
-      return res.json({ success: true, count: revisions.length, revisions });
+      const sortedLaw = sortRevisionsByEnforcementDateDesc(revisions);
+      return res.json({ success: true, count: sortedLaw.length, revisions: sortedLaw });
     }
   } catch (err: any) {
     console.error('Unified Revisions Error:', err);
@@ -1198,286 +1536,7 @@ app.post('/api/drive/get-or-create-folder', async (req, res) => {
   }
 });
 
-// 5. Drive: Export Selected Revisions as Google Sheets into Target Folder
-app.post('/api/drive/export-revision-sheets', async (req, res) => {
-  try {
-    const { accessToken, targetType, selectedItem, revisions, folderName, permissionOption, ocKey = DEFAULT_OC_KEY } = req.body;
-
-    if (!accessToken) {
-      return res.status(401).json({ error: 'Google OAuth Access Token이 필요합니다.' });
-    }
-
-    if (!revisions || !Array.isArray(revisions) || revisions.length === 0) {
-      return res.status(400).json({ error: '저장할 개정연혁을 최소 1개 이상 선택해 주세요.' });
-    }
-
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-
-    const drive = google.drive({ version: 'v3', auth });
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    // Step 1: Ensure Target Folder exists
-    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-    const cleanItemName = (selectedItem?.name || revisions[0]?.name || '관세법령').replace(/[\/\\:*?"<>|]/g, '_');
-    const targetFolderName = folderName || `[${cleanItemName}_${dateStr}]`;
-
-    const escapedFolderName = targetFolderName.replace(/['\\]/g, '\\$&');
-    let folderId = '';
-    let folderUrl = '';
-    let isFolderExisting = false;
-
-    const folderSearchRes = await drive.files.list({
-      q: `name = '${escapedFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-      fields: 'files(id, name, webViewLink)',
-      spaces: 'drive',
-    });
-
-    if (folderSearchRes.data.files && folderSearchRes.data.files.length > 0) {
-      folderId = folderSearchRes.data.files[0].id || '';
-      folderUrl = folderSearchRes.data.files[0].webViewLink || `https://drive.google.com/drive/folders/${folderId}`;
-      isFolderExisting = true;
-    } else {
-      const folderCreateRes = await drive.files.create({
-        requestBody: {
-          name: targetFolderName,
-          mimeType: 'application/vnd.google-apps.folder',
-        },
-        fields: 'id, name, webViewLink',
-      });
-      folderId = folderCreateRes.data.id || '';
-      folderUrl = folderCreateRes.data.webViewLink || `https://drive.google.com/drive/folders/${folderId}`;
-    }
-
-    // Step 2: List existing files in this folder to implement duplicate numbering '(1)', '(2)'
-    const folderFilesRes = await drive.files.list({
-      q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
-      fields: 'files(id, name)',
-      spaces: 'drive',
-    });
-    const existingFileNames = (folderFilesRes.data.files || []).map((f) => f.name || '');
-
-    const savedSheets: Array<{ title: string; spreadsheetId: string; url: string; isExisting?: boolean }> = [];
-
-    // Step 3: Iterate and create each revision sheet sequentially
-    for (let i = 0; i < revisions.length; i++) {
-      const rev = revisions[i];
-      try {
-        // Fetch full article detail for this revision
-        let revDetailUrl = '';
-        if (targetType === 'admrul' || rev.targetType === 'admrul') {
-          revDetailUrl = `http://www.law.go.kr/DRF/lawService.do?OC=${encodeURIComponent(
-            ocKey
-          )}&target=admrul&MST=${encodeURIComponent(rev.seq || rev.id)}&type=XML`;
-        } else {
-          revDetailUrl = `http://www.law.go.kr/DRF/lawService.do?OC=${encodeURIComponent(
-            ocKey
-          )}&target=law&MST=${encodeURIComponent(rev.seq || rev.id)}&type=XML`;
-        }
-
-        console.log(`[Drive Sheet Export ${i + 1}/${revisions.length}] Fetching ${revDetailUrl}`);
-        const detRes = await fetch(revDetailUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        });
-
-        let revArticles: any[] = [];
-        let fetchedInfo: any = {};
-
-        if (detRes.ok) {
-          const detXml = await detRes.text();
-          const parsed = xmlParser.parse(detXml);
-          if (targetType === 'admrul' || rev.targetType === 'admrul') {
-            const root = parsed.행정규칙 || parsed.AdmRul || parsed;
-            revArticles = parseAdmrulArticlesFromXmlRoot(root);
-            fetchedInfo = root.기본정보 || root.BasicInfo || {};
-          } else {
-            const root = parsed.법령 || parsed.Law || parsed;
-            revArticles = parseArticlesFromXmlRoot(root);
-            fetchedInfo = root.기본정보 || root.BasicInfo || {};
-          }
-        }
-
-        // Base document title: [법령/규칙명] 공포번호 (시행일자 시행)
-        const baseTitle = `[${rev.name || cleanItemName}] ${rev.promulgationNo || '개정본'} (${rev.enforcementDate || '시행일 미상'} 시행)`;
-
-        // Calculate non-colliding file title with (1), (2) numbering if duplicate exists in folder
-        let finalTitle = baseTitle;
-        let counter = 1;
-        while (existingFileNames.includes(finalTitle)) {
-          finalTitle = `${baseTitle} (${counter})`;
-          counter++;
-        }
-        existingFileNames.push(finalTitle); // Reserve for next iterations
-
-        // Create Spreadsheet directly inside target Google Drive folder
-        const createRes = await drive.files.create({
-          requestBody: {
-            name: finalTitle,
-            mimeType: 'application/vnd.google-apps.spreadsheet',
-            parents: [folderId],
-          },
-          fields: 'id, name, webViewLink',
-        });
-
-        const spreadsheetId = createRes.data.id || '';
-        const sheetUrl = createRes.data.webViewLink || `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
-
-        // Initialize Worksheets: '개요' & '조문 목록'
-        await sheets.spreadsheets.batchUpdate({
-          spreadsheetId,
-          requestBody: {
-            requests: [
-              {
-                updateSheetProperties: {
-                  properties: { sheetId: 0, title: `${cleanItemName.slice(0, 10)} 개요` },
-                  fields: 'title',
-                },
-              },
-              {
-                addSheet: {
-                  properties: { title: '조문 목록', index: 1 },
-                },
-              },
-            ],
-          },
-        });
-
-        // Populate '개요' sheet
-        const overviewValues = [
-          ['구분', '내용'],
-          ['법령/행정규칙명', rev.name || cleanItemName],
-          ['구분 (종류)', rev.ruleType || targetType === 'admrul' ? '행정규칙(고시/훈령)' : '법률'],
-          ['공포/발령번호', rev.promulgationNo || '-'],
-          ['공포/발령일자', rev.promulgationDate || '-'],
-          ['시행일자', rev.enforcementDate || '-'],
-          ['제개정구분', rev.revisionType || '-'],
-          ['소관부처', rev.department || '-'],
-          ['조문/항목수', `${revArticles.length}개 조문`],
-          ['저장일시', new Date().toLocaleString('ko-KR')],
-        ];
-
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `'${cleanItemName.slice(0, 10)} 개요'!A1`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { values: overviewValues },
-        });
-
-        // Populate '조문 목록' sheet
-        const articleHeader = [
-          '장 (Chapter)',
-          '절 (Section)',
-          '조문 번호',
-          '조문 제목',
-          '조문 내용 (본문 전문)',
-          '시행일자',
-          '삭제여부',
-        ];
-
-        const articleRows = revArticles.map((art: any) => [
-          art.chapterName || '본문',
-          art.sectionName || '',
-          art.articleNo || '',
-          art.articleTitle || '',
-          art.articleContent || '',
-          art.effectiveDate || rev.enforcementDate || '',
-          art.isDeleted ? '삭제됨' : '',
-        ]);
-
-        const allArticleValues = [articleHeader, ...articleRows];
-
-        await sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: `'조문 목록'!A1`,
-          valueInputOption: 'USER_ENTERED',
-          requestBody: { values: allArticleValues },
-        });
-
-        // Style header & auto-format
-        try {
-          await sheets.spreadsheets.batchUpdate({
-            spreadsheetId,
-            requestBody: {
-              requests: [
-                {
-                  repeatCell: {
-                    range: { sheetId: 1, startRowIndex: 0, endRowIndex: 1 },
-                    cell: {
-                      userEnteredFormat: {
-                        backgroundColor: { red: 0.1, green: 0.2, blue: 0.35 },
-                        textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
-                        horizontalAlignment: 'CENTER',
-                      },
-                    },
-                    fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)',
-                  },
-                },
-                {
-                  autoResizeDimensions: {
-                    dimensions: { sheetId: 1, dimension: 'COLUMNS', startIndex: 0, endIndex: 4 },
-                  },
-                },
-              ],
-            },
-          });
-        } catch (styleErr) {
-          console.warn('Style batchUpdate warning:', styleErr);
-        }
-
-        savedSheets.push({
-          title: finalTitle,
-          spreadsheetId,
-          url: sheetUrl,
-          isExisting: false,
-        });
-
-        // Optional permission assignment per file if requested
-        if (permissionOption?.type === 'anyone') {
-          try {
-            await drive.permissions.create({
-              fileId: spreadsheetId,
-              requestBody: { role: 'reader', type: 'anyone' },
-            });
-          } catch (permErr) {
-            console.warn('Permission setting warning:', permErr);
-          }
-        }
-      } catch (itemErr: any) {
-        console.error(`Error saving revision ${rev.promulgationNo}:`, itemErr);
-      }
-    }
-
-    // Step 4: Apply permission to Folder if requested
-    if (permissionOption?.type === 'anyone' && folderId) {
-      try {
-        await drive.permissions.create({
-          fileId: folderId,
-          requestBody: { role: 'reader', type: 'anyone' },
-        });
-      } catch (fPermErr) {
-        console.warn('Folder permission setting warning:', fPermErr);
-      }
-    }
-
-    return res.json({
-      success: true,
-      folder: {
-        id: folderId,
-        name: targetFolderName,
-        url: folderUrl,
-        isExisting: isFolderExisting,
-      },
-      savedSheets,
-      totalSaved: savedSheets.length,
-      message: `${savedSheets.length}개 개정연혁 구글 시트가 '${targetFolderName}' 드라이브 폴더에 성공적으로 저장되었습니다.`,
-    });
-  } catch (err: any) {
-    console.error('Drive Export Revisions Error:', err);
-    return res.status(500).json({ error: err.message || '구글 드라이브 시트 내보내기 중 오류가 발생했습니다.' });
-  }
-});
-
-// 6. Drive: Permissions Revoke (외부 공유 권한 일괄 해제 -> 소유자 전용 비공개 전환)
+// Drive: Permissions Revoke (외부 공유 권한 일괄 해제 -> 소유자 전용 비공개 전환)
 app.post('/api/drive/permissions/revoke', async (req, res) => {
   try {
     const { accessToken, targetId, targetIds } = req.body;
@@ -1584,6 +1643,8 @@ app.post('/api/sheets/save', async (req, res) => {
         revisionList = await fetchAll140Revisions(ocKey);
       }
 
+      revisionList = sortRevisionsByEnforcementDateDesc(revisionList);
+
       console.log(`[Batch Export Separate] Processing ${revisionList.length} revisions (checking Drive for existing files)...`);
       const createdFiles: Array<{ title: string; spreadsheetId: string; url: string; promulgationNo: string; enforcementDate: string; isExisting?: boolean }> = [];
 
@@ -1592,7 +1653,7 @@ app.post('/api/sheets/save', async (req, res) => {
       for (let i = 0; i < revisionList.length; i += chunkSize) {
         const chunk = revisionList.slice(i, i + chunkSize);
         await Promise.all(
-          chunk.map(async (rev: any) => {
+          chunk.map(async (rev: any, chunkIndex: number) => {
             try {
               const detailUrl = `http://www.law.go.kr/DRF/lawService.do?OC=${encodeURIComponent(
                 ocKey
@@ -1609,7 +1670,8 @@ app.post('/api/sheets/save', async (req, res) => {
               const root = parsed.법령 || parsed.Law || parsed;
               const revArticles = parseArticlesFromXmlRoot(root);
 
-              const docTitle = `[관세법] ${rev.promulgationNo || '개정본'} (${rev.enforcementDate || ''} 시행)`;
+              const revIndexNum = String(i + chunkIndex + 1).padStart(3, '0');
+              const docTitle = `${revIndexNum}_[관세법] ${rev.promulgationNo || '개정본'} (${rev.enforcementDate || ''} 시행)`;
 
               let spId = '';
               let isExistingFile = false;
@@ -2523,20 +2585,25 @@ app.post('/api/drive/export-all-revisions-folder', async (req, res) => {
     let folderUrl = '';
     let folderSkipped = false;
 
-    const folderSearchRes = await callWithRetry(() =>
-      drive.files.list({
-        q: `name = '${targetFolderName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-        fields: 'files(id, name, webViewLink)',
-        spaces: 'drive',
-      })
-    );
+    try {
+      const folderSearchRes = await callWithRetry(() =>
+        drive.files.list({
+          q: `name = '${targetFolderName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+          fields: 'files(id, name, webViewLink)',
+        })
+      );
 
-    if (folderSearchRes.data.files && folderSearchRes.data.files.length > 0) {
-      folderId = folderSearchRes.data.files[0].id || '';
-      folderUrl = folderSearchRes.data.files[0].webViewLink || `https://drive.google.com/drive/folders/${folderId}`;
-      folderSkipped = true;
-      console.log(`[Drive Folder Exists - Skipped Creation] ${targetFolderName} (ID: ${folderId})`);
-    } else {
+      if (folderSearchRes.data.files && folderSearchRes.data.files.length > 0) {
+        folderId = folderSearchRes.data.files[0].id || '';
+        folderUrl = folderSearchRes.data.files[0].webViewLink || `https://drive.google.com/drive/folders/${folderId}`;
+        folderSkipped = true;
+        console.log(`[Drive Folder Exists - Skipped Creation] ${targetFolderName} (ID: ${folderId})`);
+      }
+    } catch (searchErr: any) {
+      console.warn('[Drive Folder Search Warning] Proceeding to create folder:', searchErr?.message);
+    }
+
+    if (!folderId) {
       const folderCreateRes = await callWithRetry(() =>
         drive.files.create({
           requestBody: {
@@ -2551,23 +2618,26 @@ app.post('/api/drive/export-all-revisions-folder', async (req, res) => {
       console.log(`[Drive Folder Created] ${targetFolderName} (ID: ${folderId})`);
     }
 
-    // 3. Fetch revisions (Customs Act 140 or Administrative Rule 10)
+    if (!folderId) {
+      throw new Error('Google Drive 폴더 생성에 실패했습니다. Google 계정 권한을 확인해 주세요.');
+    }
+
+    // 3. Fetch revisions (Customs Act 140, Foreign Exchange Act 45, or Administrative Rules)
     let revisionList: any[] = req.body.revisions || [];
     if (!Array.isArray(revisionList) || revisionList.length === 0) {
       if (lawCategory === 'admrul' || cleanLawName === '외국환거래규정') {
-        const effectiveLimit = limitCount > 0 ? limitCount : 10;
+        const effectiveLimit = limitCount > 0 ? limitCount : 0;
         revisionList = await fetchAdmrulRevisions(ocKey, cleanLawName, effectiveLimit);
       } else {
-        revisionList = await fetchAll140Revisions(ocKey);
-        if (limitCount > 0) {
-          revisionList = revisionList.slice(0, limitCount);
-        }
+        revisionList = await fetchLawRevisions(ocKey, cleanLawName, limitCount > 0 ? limitCount : 0);
       }
     }
 
     if (revisionList.length === 0) {
       return res.status(404).json({ error: `${cleanLawName}의 개정연혁 목록을 불러올 수 없습니다.` });
     }
+
+    revisionList = sortRevisionsByEnforcementDateDesc(revisionList);
 
     // ========================================================
     // MODE A: 'single_file' -> 구글시트 1개에 모든 개정연혁 및 조문 통합 저장
@@ -3182,9 +3252,543 @@ app.post('/api/drive/export-all-revisions-folder', async (req, res) => {
     return res.status(400).json({ error: '올바른 모드(single_file 또는 separate_files)를 지정해 주세요.' });
   } catch (error: any) {
     console.error('Export All Revisions Folder Error:', error);
-    return res.status(error.status || 500).json({
-      error: error.message || 'Google Drive 폴더 저장 중 오류가 발생했습니다.',
+    const errMsg = error.message || 'Google Drive 폴더 저장 중 오류가 발생했습니다.';
+    const isAuthError =
+      error.status === 401 ||
+      errMsg.includes('Invalid Credentials') ||
+      errMsg.includes('auth') ||
+      errMsg.includes('token') ||
+      errMsg.includes('UNAUTHENTICATED');
+    const isForbidden =
+      error.status === 403 ||
+      errMsg.includes('PERMISSION_DENIED') ||
+      errMsg.includes('insufficient');
+
+    let userFriendlyMsg = errMsg;
+    if (isAuthError) {
+      userFriendlyMsg = 'Google 인증 토큰이 만료되었거나 유효하지 않습니다. 상단 [Google 로그인] 버튼을 눌러 다시 로그인해 주세요.';
+    } else if (isForbidden) {
+      userFriendlyMsg = 'Google Drive / Spreadsheets 쓰기 권한이 부족합니다. Google 로그인 시 드라이브 및 스프레드시트 권한을 허용해 주세요.';
+    }
+
+    return res.status(error.status || (isAuthError ? 401 : 500)).json({
+      error: userFriendlyMsg,
+      authError: isAuthError || isForbidden,
     });
+  }
+});
+
+// API Route: Export revision sheets for Unified Search & Drive Exporter (법령 · 행정규칙 드라이브 연동)
+app.post('/api/drive/export-revision-sheets', async (req, res) => {
+  try {
+    const {
+      accessToken,
+      targetType = 'law',
+      selectedItem,
+      revisions = [],
+      folderName,
+      permissionOption,
+      ocKey = DEFAULT_OC_KEY,
+    } = req.body;
+
+    if (!accessToken) {
+      return res.status(401).json({
+        success: false,
+        error: 'Google OAuth 인증 토큰이 필요합니다. 상단 Google 로그인 버튼을 눌러주세요.',
+        authError: true,
+      });
+    }
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth });
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    // Helper for API retry
+    const callWithRetry = async <T>(fn: () => Promise<T>, retries = 4, delay = 1200): Promise<T> => {
+      try {
+        return await fn();
+      } catch (err: any) {
+        const isRateLimit =
+          err?.status === 429 ||
+          err?.code === 429 ||
+          err?.message?.includes('Quota') ||
+          err?.message?.includes('rate') ||
+          err?.message?.includes('RESOURCE_EXHAUSTED');
+
+        if (isRateLimit && retries > 0) {
+          console.warn(`[Unified Drive API Rate Limit] Pausing ${delay}ms before retry...`);
+          await new Promise((r) => setTimeout(r, delay));
+          return callWithRetry(fn, retries - 1, delay * 2);
+        }
+        throw err;
+      }
+    };
+
+    const cleanLawName = (selectedItem?.name || (targetType === 'admrul' ? '외국환거래규정' : '관세법')).trim();
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const defaultFolderName = `[${cleanLawName.replace(/[\/\\:*?"<>|]/g, '_')}_${today}]`;
+    const targetFolderName = (folderName || defaultFolderName).trim();
+
+    console.log(`[Unified Drive Export] Starting export for '${cleanLawName}', folder: '${targetFolderName}', revisions: ${revisions.length}`);
+
+    // 1. Search or Create Folder in Google Drive
+    let folderId = '';
+    let folderUrl = '';
+    let folderSkipped = false;
+
+    try {
+      const folderSearchRes = await callWithRetry(() =>
+        drive.files.list({
+          q: `name = '${targetFolderName.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+          fields: 'files(id, name, webViewLink)',
+        })
+      );
+      if (folderSearchRes.data.files && folderSearchRes.data.files.length > 0) {
+        folderId = folderSearchRes.data.files[0].id || '';
+        folderUrl = folderSearchRes.data.files[0].webViewLink || `https://drive.google.com/drive/folders/${folderId}`;
+        folderSkipped = true;
+        console.log(`[Unified Drive Folder Exists] Reusing folder ID: ${folderId}`);
+      }
+    } catch (searchErr: any) {
+      console.warn('[Unified Drive Folder Search Warning]', searchErr?.message);
+    }
+
+    if (!folderId) {
+      const folderCreateRes = await callWithRetry(() =>
+        drive.files.create({
+          requestBody: {
+            name: targetFolderName,
+            mimeType: 'application/vnd.google-apps.folder',
+          },
+          fields: 'id, name, webViewLink',
+        })
+      );
+      folderId = folderCreateRes.data.id || '';
+      folderUrl = folderCreateRes.data.webViewLink || `https://drive.google.com/drive/folders/${folderId}`;
+      console.log(`[Unified Drive Folder Created] New folder ID: ${folderId}`);
+    }
+
+    if (!folderId) {
+      throw new Error('Google Drive 폴더를 생성할 수 없습니다. Google 계정 권한을 확인해 주세요.');
+    }
+
+    // 2. Set Public Permission on Folder if requested
+    if (permissionOption?.type === 'anyone') {
+      try {
+        await callWithRetry(() =>
+          drive.permissions.create({
+            fileId: folderId,
+            requestBody: {
+              role: permissionOption.role || 'reader',
+              type: 'anyone',
+            },
+          })
+        );
+      } catch (permErr: any) {
+        console.warn('[Unified Folder Permission Warning]', permErr?.message);
+      }
+    }
+
+    // 3. Check existing files in folder
+    const existingFileMap = new Map<string, { id: string; url: string }>();
+    try {
+      const existingFilesRes = await callWithRetry(() =>
+        drive.files.list({
+          q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
+          fields: 'files(id, name, webViewLink)',
+        })
+      );
+      (existingFilesRes.data.files || []).forEach((f) => {
+        if (f.name && f.id) {
+          existingFileMap.set(f.name, {
+            id: f.id,
+            url: f.webViewLink || `https://docs.google.com/spreadsheets/d/${f.id}/edit`,
+          });
+        }
+      });
+    } catch (listErr: any) {
+      console.warn('[Unified Existing Files List Warning]', listErr?.message);
+    }
+
+    const savedSheets: Array<{
+      title: string;
+      url: string;
+      spreadsheetId: string;
+      isExisting?: boolean;
+      promulgationNo?: string;
+      enforcementDate?: string;
+      articleCount?: number;
+    }> = [];
+
+    let skippedCount = 0;
+    let newCreatedCount = 0;
+
+    // 4. Sort revisions by enforcement date descending (최근 시행일자순 우선 정렬 후 번호 001, 002... 부여)
+    const sortedRevisions = sortRevisionsByEnforcementDateDesc(revisions);
+
+    // 5. Process revisions in chunks of 3
+    const chunkSize = 3;
+    for (let i = 0; i < sortedRevisions.length; i += chunkSize) {
+      const chunk = sortedRevisions.slice(i, i + chunkSize);
+      await Promise.all(
+        chunk.map(async (rev: any, chunkIndex: number) => {
+          const revIndexNum = String(i + chunkIndex + 1).padStart(3, '0');
+          const safePromNo = rev.promulgationNo || '개정본';
+          const safeEnfDate = rev.enforcementDate || '시행일 미상';
+          const docTitle = `${revIndexNum}_[${cleanLawName}] ${safePromNo} (${safeEnfDate} 시행)`;
+
+          // Check if file already exists in folder
+          if (existingFileMap.has(docTitle)) {
+            const ex = existingFileMap.get(docTitle)!;
+            skippedCount++;
+            savedSheets.push({
+              title: docTitle,
+              spreadsheetId: ex.id,
+              url: ex.url,
+              promulgationNo: rev.promulgationNo,
+              enforcementDate: rev.enforcementDate,
+              isExisting: true,
+            });
+            console.log(`[Unified Sheet Exists - Skipped] ${docTitle}`);
+            return;
+          }
+
+          try {
+            // Fetch articles from National Law API
+            const isAdmrul = targetType === 'admrul' || rev.targetType === 'admrul' || cleanLawName === '외국환거래규정';
+            const idParam = rev.lawMst || rev.seq || rev.id || (isAdmrul ? '2100000281984' : '280363');
+
+            const detailUrl = isAdmrul
+              ? `http://www.law.go.kr/DRF/lawService.do?OC=${encodeURIComponent(
+                  ocKey
+                )}&target=admrul&ID=${encodeURIComponent(idParam)}&type=XML`
+              : `http://www.law.go.kr/DRF/lawService.do?OC=${encodeURIComponent(
+                  ocKey
+                )}&target=law&MST=${encodeURIComponent(idParam)}&type=XML`;
+
+            const detailRes = await fetch(detailUrl, {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+            });
+
+            let revArticles: any[] = [];
+            if (detailRes.ok) {
+              const detailXml = await detailRes.text();
+              const parsed = xmlParser.parse(detailXml);
+              const root =
+                parsed.AdmRulService ||
+                parsed.admRulService ||
+                parsed.행정규칙 ||
+                parsed.AdmRul ||
+                parsed.법령 ||
+                parsed.Law ||
+                parsed;
+              revArticles = isAdmrul ? parseAdmrulArticlesFromXmlRoot(root) : parseArticlesFromXmlRoot(root);
+            }
+
+            // Append buchik row if buchikText exists
+            if (rev.buchikText && (!revArticles.some((a) => a.articleTitle?.includes('부칙') || a.articleNo?.includes('부칙')))) {
+              revArticles.push({
+                chapterName: '부칙',
+                sectionName: '',
+                subsectionName: '',
+                articleNo: '부칙',
+                articleTitle: `${safePromNo} 부칙`,
+                articleContent: rev.buchikText,
+                effectiveDate: safeEnfDate,
+              });
+            }
+
+            // Create Spreadsheet in Google Drive folder
+            const createRes = await callWithRetry(() =>
+              drive.files.create({
+                requestBody: {
+                  name: docTitle,
+                  mimeType: 'application/vnd.google-apps.spreadsheet',
+                  parents: [folderId],
+                },
+                fields: 'id, name, webViewLink',
+              })
+            );
+
+            const spId = createRes.data.id || '';
+            const spUrl = createRes.data.webViewLink || `https://docs.google.com/spreadsheets/d/${spId}/edit`;
+            if (!spId) return;
+
+            // Set Public Permission if requested
+            if (permissionOption?.type === 'anyone') {
+              try {
+                await callWithRetry(() =>
+                  drive.permissions.create({
+                    fileId: spId,
+                    requestBody: {
+                      role: permissionOption.role || 'reader',
+                      type: 'anyone',
+                    },
+                  })
+                );
+              } catch (pErr) {}
+            }
+
+            // Setup sheet tabs: [개요] (sheetId: 0) and [조문 목록] (sheetId: 1)
+            const overviewSheet = `${cleanLawName} 개요`;
+            const articlesSheet = '조문 목록';
+
+            await callWithRetry(() =>
+              sheets.spreadsheets.batchUpdate({
+                spreadsheetId: spId,
+                requestBody: {
+                  requests: [
+                    {
+                      updateSheetProperties: {
+                        properties: { sheetId: 0, title: overviewSheet },
+                        fields: 'title',
+                      },
+                    },
+                    {
+                      addSheet: {
+                        properties: { sheetId: 1, title: articlesSheet, index: 1 },
+                      },
+                    },
+                  ],
+                },
+              })
+            );
+
+            // Populate Overview Values
+            const overviewValues = [
+              [`[국가법령/행정규칙] ${cleanLawName} 개정본 상세 개요`],
+              [''],
+              ['항목', '상세 내용'],
+              ['법령 / 행정규칙명', cleanLawName],
+              ['공포 / 발령번호', safePromNo],
+              ['시행일자', safeEnfDate],
+              ['공포 / 발령일자', rev.promulgationDate || '-'],
+              ['제개정구분', rev.revisionType || '일부개정'],
+              ['소관부처', rev.department || '기획재정부'],
+              ['법령구분 / 종류', isAdmrul ? (rev.ruleType ? `행정규칙(${rev.ruleType})` : '행정규칙(고시)') : (rev.ruleType || '법률')],
+              ['법령일련번호 (ID/MST)', rev.lawMst || rev.seq || rev.id || '-'],
+              ['수록 조문 수', `${revArticles.length}개 조문 (장·절·관 분류 및 부칙 포함)`],
+              ['저장 폴더', targetFolderName],
+              ['생성 일시', new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })],
+            ];
+
+            // Populate Article Rows
+            const articleHeaders = [
+              '장 (Chapter)',
+              '절 (Section)',
+              '관 (Subsection)',
+              '조문 번호',
+              '조문 제목',
+              '조문 내용 (전문)',
+              '시행일자',
+              '비고',
+            ];
+
+            const articleRows = revArticles.map((art) => [
+              art.chapterName || '',
+              art.sectionName || '',
+              art.subsectionName || '',
+              art.articleNo || '',
+              art.articleTitle || '',
+              art.articleContent || '',
+              art.effectiveDate || safeEnfDate,
+              art.isDeleted ? '삭제' : '',
+            ]);
+
+            await callWithRetry(() =>
+              sheets.spreadsheets.values.batchUpdate({
+                spreadsheetId: spId,
+                requestBody: {
+                  valueInputOption: 'USER_ENTERED',
+                  data: [
+                    {
+                      range: `'${overviewSheet}'!A1`,
+                      values: overviewValues,
+                    },
+                    {
+                      range: `'${articlesSheet}'!A1`,
+                      values: [articleHeaders, ...articleRows],
+                    },
+                  ],
+                },
+              })
+            );
+
+            // Format styling: TOP vertical alignment, WRAP text, Navy header with bold white text, freeze rows
+            await callWithRetry(() =>
+              sheets.spreadsheets.batchUpdate({
+                spreadsheetId: spId,
+                requestBody: {
+                  requests: [
+                    // Overview sheet format
+                    {
+                      repeatCell: {
+                        range: { sheetId: 0, startRowIndex: 0 },
+                        cell: {
+                          userEnteredFormat: {
+                            verticalAlignment: 'TOP',
+                            wrapStrategy: 'WRAP',
+                          },
+                        },
+                        fields: 'userEnteredFormat(verticalAlignment,wrapStrategy)',
+                      },
+                    },
+                    {
+                      repeatCell: {
+                        range: { sheetId: 0, startRowIndex: 2, endRowIndex: 3 },
+                        cell: {
+                          userEnteredFormat: {
+                            backgroundColor: { red: 0.12, green: 0.18, blue: 0.3 },
+                            textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
+                            verticalAlignment: 'MIDDLE',
+                            horizontalAlignment: 'CENTER',
+                          },
+                        },
+                        fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)',
+                      },
+                    },
+                    // Articles sheet format
+                    {
+                      repeatCell: {
+                        range: { sheetId: 1, startRowIndex: 0 },
+                        cell: {
+                          userEnteredFormat: {
+                            verticalAlignment: 'TOP',
+                            wrapStrategy: 'WRAP',
+                          },
+                        },
+                        fields: 'userEnteredFormat(verticalAlignment,wrapStrategy)',
+                      },
+                    },
+                    {
+                      repeatCell: {
+                        range: { sheetId: 1, startRowIndex: 0, endRowIndex: 1 },
+                        cell: {
+                          userEnteredFormat: {
+                            backgroundColor: { red: 0.12, green: 0.18, blue: 0.3 },
+                            textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 }, fontSize: 10 },
+                            verticalAlignment: 'MIDDLE',
+                            horizontalAlignment: 'CENTER',
+                          },
+                        },
+                        fields: 'userEnteredFormat(backgroundColor,textFormat,verticalAlignment,horizontalAlignment)',
+                      },
+                    },
+                    {
+                      updateSheetProperties: {
+                        properties: { sheetId: 1, gridProperties: { frozenRowCount: 1 } },
+                        fields: 'gridProperties.frozenRowCount',
+                      },
+                    },
+                    {
+                      updateDimensionProperties: {
+                        range: { sheetId: 1, dimension: 'COLUMNS', startIndex: 5, endIndex: 6 },
+                        properties: { pixelSize: 520 },
+                        fields: 'pixelSize',
+                      },
+                    },
+                  ],
+                },
+              })
+            );
+
+            newCreatedCount++;
+            savedSheets.push({
+              title: docTitle,
+              spreadsheetId: spId,
+              url: spUrl,
+              promulgationNo: rev.promulgationNo,
+              enforcementDate: rev.enforcementDate,
+              articleCount: revArticles.length,
+              isExisting: false,
+            });
+          } catch (itemErr: any) {
+            console.warn(`[Unified Sheet Creation Warning] ${docTitle}:`, itemErr?.message);
+          }
+        })
+      );
+      // Pacing delay
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    }
+
+    let summaryMsg = `Google Drive '${targetFolderName}' 폴더에 저장이 완료되었습니다! (신규 생성: ${newCreatedCount}개, 중복 스킵: ${skippedCount}개)`;
+    if (skippedCount > 0 && newCreatedCount === 0) {
+      summaryMsg = `Google Drive '${targetFolderName}' 폴더에 모든 파일(${skippedCount}개)이 이미 존재하여 저장을 스킵했습니다.`;
+    }
+
+    return res.json({
+      success: true,
+      folder: {
+        id: folderId,
+        name: targetFolderName,
+        url: folderUrl,
+        created: !folderSkipped,
+        isExisting: folderSkipped,
+      },
+      savedSheets,
+      createdCount: newCreatedCount,
+      skippedCount,
+      totalCount: savedSheets.length,
+      message: summaryMsg,
+    });
+  } catch (error: any) {
+    console.error('Unified Export Revision Sheets Error:', error);
+    const errMsg = error.message || 'Google Drive 저장 중 오류가 발생했습니다.';
+    const isAuthError =
+      error.status === 401 ||
+      errMsg.includes('Invalid Credentials') ||
+      errMsg.includes('auth') ||
+      errMsg.includes('token') ||
+      errMsg.includes('UNAUTHENTICATED');
+    const isForbidden =
+      error.status === 403 ||
+      errMsg.includes('PERMISSION_DENIED') ||
+      errMsg.includes('insufficient');
+
+    let userFriendlyMsg = errMsg;
+    if (isAuthError) {
+      userFriendlyMsg = 'Google 인증 토큰이 만료되었거나 유효하지 않습니다. 상단 [Google 로그인] 버튼을 눌러 다시 로그인해 주세요.';
+    } else if (isForbidden) {
+      userFriendlyMsg = 'Google Drive / Spreadsheets 쓰기 권한이 부족합니다. Google 로그인 시 드라이브 및 스프레드시트 전체 권한을 허용해 주세요.';
+    }
+
+    return res.status(error.status || (isAuthError ? 401 : 500)).json({
+      success: false,
+      error: userFriendlyMsg,
+      authError: isAuthError || isForbidden,
+    });
+  }
+});
+
+// API Route: Revoke all external Drive permissions (비공개 전환)
+app.post('/api/drive/permissions/revoke', async (req, res) => {
+  try {
+    const { accessToken, targetId, targetIds } = req.body;
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Google OAuth 인증 토큰이 필요합니다.' });
+    }
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth });
+
+    const allIds = [targetId, ...(Array.isArray(targetIds) ? targetIds : [])].filter(Boolean);
+    for (const fId of allIds) {
+      try {
+        const permRes = await drive.permissions.list({ fileId: fId, fields: 'permissions(id, role, type)' });
+        for (const p of permRes.data.permissions || []) {
+          if (p.type === 'anyone' && p.id) {
+            await drive.permissions.delete({ fileId: fId, permissionId: p.id });
+          }
+        }
+      } catch (pErr: any) {
+        console.warn(`[Permission Revoke Warning] File ${fId}:`, pErr?.message);
+      }
+    }
+    return res.json({ success: true, message: '모든 외부 공유 권한이 성공적으로 해제되어 소유자 전용 비공개로 전환되었습니다.' });
+  } catch (err: any) {
+    console.error('Revoke permission error:', err);
+    return res.status(500).json({ error: err.message || '권한 해제 중 오류가 발생했습니다.' });
   }
 });
 
@@ -5444,6 +6048,499 @@ app.post('/api/export-hsk-excel-sheets', async (req, res) => {
       errMsg = 'Google Cloud 프로젝트의 Google Sheets API 서비스가 활성화되지 않았습니다. 상단 [Google 로그인]을 진행하시거나 [CSV / 엑셀 직다운로드] 버튼을 이용해 주세요.';
     }
     return res.status(500).json({ error: errMsg });
+  }
+});
+
+// ============================================================================
+// Google Drive Folder Sheets -> Excel (.xlsx) Batch Conversion Endpoints
+// ============================================================================
+
+// 1. List user's Google Drive folders (recent or searched)
+app.post('/api/drive/list-user-folders', async (req, res) => {
+  try {
+    const { accessToken, query } = req.body;
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Google OAuth Access Token이 필요합니다.' });
+    }
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth });
+
+    let q = "mimeType = 'application/vnd.google-apps.folder' and trashed = false";
+    if (query && query.trim()) {
+      const cleanQ = query.trim().replace(/['\\]/g, '\\$&');
+      q += ` and name contains '${cleanQ}'`;
+    }
+
+    const listRes = await drive.files.list({
+      q,
+      fields: 'files(id, name, webViewLink, modifiedTime, createdTime, parents)',
+      orderBy: 'modifiedTime desc',
+      pageSize: 40,
+      spaces: 'drive',
+    });
+
+    const folders = (listRes.data.files || []).map((f) => ({
+      id: f.id || '',
+      name: f.name || '이름 없는 폴더',
+      url: f.webViewLink || `https://drive.google.com/drive/folders/${f.id}`,
+      modifiedTime: f.modifiedTime || '',
+      createdTime: f.createdTime || '',
+    }));
+
+    return res.json({
+      success: true,
+      count: folders.length,
+      folders,
+    });
+  } catch (err: any) {
+    console.error('List Drive Folders Error:', err);
+    return res.status(500).json({ error: err.message || '구글 드라이브 폴더 목록을 조회하는 중 오류가 발생했습니다.' });
+  }
+});
+
+// 2. Get folder details and list all Google Sheets & Excel files inside it
+app.post('/api/drive/get-folder-sheets', async (req, res) => {
+  try {
+    const { accessToken, folderInput } = req.body;
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Google OAuth Access Token이 필요합니다.' });
+    }
+    if (!folderInput || !String(folderInput).trim()) {
+      return res.status(400).json({ error: '조회할 구글 드라이브 폴더 ID, URL 또는 폴더명을 입력해 주세요.' });
+    }
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth });
+
+    let folderId = String(folderInput).trim();
+
+    // Extract folder ID if URL was passed
+    const folderUrlMatch = folderId.match(/folders\/([a-zA-Z0-9_-]+)/);
+    if (folderUrlMatch) {
+      folderId = folderUrlMatch[1];
+    } else if (folderId.includes('id=')) {
+      const idMatch = folderId.match(/id=([a-zA-Z0-9_-]+)/);
+      if (idMatch) folderId = idMatch[1];
+    }
+
+    let folderName = '선택한 폴더';
+    let folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
+
+    // Try finding by direct ID first
+    try {
+      const getRes = await drive.files.get({
+        fileId: folderId,
+        fields: 'id, name, webViewLink, mimeType',
+      });
+      if (getRes.data.id) {
+        folderId = getRes.data.id;
+        folderName = getRes.data.name || folderName;
+        folderUrl = getRes.data.webViewLink || folderUrl;
+      }
+    } catch (idErr) {
+      // If failed by ID, try searching by folder name
+      const searchNameEscaped = folderInput.trim().replace(/['\\]/g, '\\$&');
+      const searchRes = await drive.files.list({
+        q: `mimeType = 'application/vnd.google-apps.folder' and name = '${searchNameEscaped}' and trashed = false`,
+        fields: 'files(id, name, webViewLink)',
+        spaces: 'drive',
+        pageSize: 1,
+      });
+
+      if (searchRes.data.files && searchRes.data.files.length > 0) {
+        const found = searchRes.data.files[0];
+        folderId = found.id || '';
+        folderName = found.name || folderName;
+        folderUrl = found.webViewLink || `https://drive.google.com/drive/folders/${folderId}`;
+      } else {
+        return res.status(404).json({
+          error: `입력하신 폴더 ('${folderInput}')를 구글 드라이브에서 찾을 수 없습니다. 폴더 ID 또는 정확한 폴더 링크를 확인해 주세요.`,
+        });
+      }
+    }
+
+    // Step A: List Google Sheets inside the folder
+    const sheetsRes = await drive.files.list({
+      q: `'${folderId}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false`,
+      fields: 'files(id, name, webViewLink, modifiedTime, createdTime, size)',
+      pageSize: 500,
+      spaces: 'drive',
+    });
+
+    // Step B: List existing Excel (.xlsx) files inside the folder to display converted status
+    const excelsRes = await drive.files.list({
+      q: `'${folderId}' in parents and (mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' or name contains '.xlsx') and trashed = false`,
+      fields: 'files(id, name, webViewLink, modifiedTime, createdTime, size)',
+      pageSize: 500,
+      spaces: 'drive',
+    });
+
+    const excelNamesSet = new Set((excelsRes.data.files || []).map((f) => (f.name || '').toLowerCase()));
+    const excelFiles = (excelsRes.data.files || []).map((f) => ({
+      id: f.id || '',
+      name: f.name || '',
+      url: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`,
+      modifiedTime: f.modifiedTime || '',
+      size: f.size ? `${(parseInt(f.size, 10) / 1024).toFixed(1)} KB` : '기본',
+    }));
+
+    const sheets = (sheetsRes.data.files || []).map((f) => {
+      const sheetName = f.name || '이름 없음';
+      const expectedExcelName = sheetName.endsWith('.xlsx') ? sheetName.toLowerCase() : `${sheetName}.xlsx`.toLowerCase();
+      const hasConvertedExcel = excelNamesSet.has(expectedExcelName);
+
+      return {
+        id: f.id || '',
+        name: sheetName,
+        url: f.webViewLink || `https://docs.google.com/spreadsheets/d/${f.id}/edit`,
+        modifiedTime: f.modifiedTime || '',
+        hasConvertedExcel,
+        expectedExcelName: sheetName.endsWith('.xlsx') ? sheetName : `${sheetName}.xlsx`,
+      };
+    });
+
+    // Sort sheets alphabetically / chronologically by name (001, 002, 003...)
+    sheets.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+    excelFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+    return res.json({
+      success: true,
+      folder: {
+        id: folderId,
+        name: folderName,
+        url: folderUrl,
+      },
+      sheetsCount: sheets.length,
+      excelsCount: excelFiles.length,
+      sheets,
+      excelFiles,
+    });
+  } catch (err: any) {
+    console.error('Get Folder Sheets Error:', err);
+    return res.status(500).json({ error: err.message || '폴더 내 구글시트 목록을 조회하는 중 오류가 발생했습니다.' });
+  }
+});
+
+// 3. Batch convert Google Sheets to Excel (.xlsx) and save into Google Drive
+app.post('/api/drive/batch-convert-sheets-to-excel', async (req, res) => {
+  try {
+    const { accessToken, folderId, fileIds, destination = 'same_folder', customSubfolderName, overwrite = true } = req.body;
+
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Google OAuth Access Token이 필요합니다.' });
+    }
+    if (!folderId) {
+      return res.status(400).json({ error: '대상 구글 드라이브 폴더 ID가 필요합니다.' });
+    }
+    if (!fileIds || !Array.isArray(fileIds) || fileIds.length === 0) {
+      return res.status(400).json({ error: '엑셀로 변환할 구글시트를 최소 1개 이상 선택해 주세요.' });
+    }
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth });
+
+    // Step 1: Resolve destination folder ID
+    let targetFolderId = folderId;
+    let targetFolderName = '동일 폴더';
+    let targetFolderUrl = `https://drive.google.com/drive/folders/${folderId}`;
+
+    if (destination === 'subfolder') {
+      const nowStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const subName = customSubfolderName?.trim() || `[엑셀변환_${nowStr}]`;
+      const escapedSub = subName.replace(/['\\]/g, '\\$&');
+
+      // Check if subfolder already exists in parent folder
+      const subSearch = await drive.files.list({
+        q: `'${folderId}' in parents and name = '${escapedSub}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+        fields: 'files(id, name, webViewLink)',
+        spaces: 'drive',
+      });
+
+      if (subSearch.data.files && subSearch.data.files.length > 0) {
+        targetFolderId = subSearch.data.files[0].id || folderId;
+        targetFolderName = subSearch.data.files[0].name || subName;
+        targetFolderUrl = subSearch.data.files[0].webViewLink || `https://drive.google.com/drive/folders/${targetFolderId}`;
+      } else {
+        const createSub = await drive.files.create({
+          requestBody: {
+            name: subName,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: [folderId],
+          },
+          fields: 'id, name, webViewLink',
+        });
+        targetFolderId = createSub.data.id || folderId;
+        targetFolderName = createSub.data.name || subName;
+        targetFolderUrl = createSub.data.webViewLink || `https://drive.google.com/drive/folders/${targetFolderId}`;
+      }
+    } else {
+      try {
+        const getParent = await drive.files.get({ fileId: folderId, fields: 'id, name, webViewLink' });
+        targetFolderName = getParent.data.name || '대상 폴더';
+        targetFolderUrl = getParent.data.webViewLink || targetFolderUrl;
+      } catch (pErr) {
+        // ignore
+      }
+    }
+
+    // Step 2: List existing files in target folder to handle overwrite / skip
+    const existingInTarget = await drive.files.list({
+      q: `'${targetFolderId}' in parents and trashed = false`,
+      fields: 'files(id, name, webViewLink)',
+      pageSize: 500,
+      spaces: 'drive',
+    });
+    const existingFileMap = new Map<string, { id: string; url: string }>();
+    (existingInTarget.data.files || []).forEach((f) => {
+      if (f.name && f.id) {
+        existingFileMap.set(f.name.trim().toLowerCase(), {
+          id: f.id,
+          url: f.webViewLink || `https://drive.google.com/file/d/${f.id}/view`,
+        });
+      }
+    });
+
+    const results: Array<{
+      sheetId: string;
+      sheetName: string;
+      excelId: string;
+      excelName: string;
+      excelUrl: string;
+      sizeKb: number;
+      status: 'converted' | 'updated' | 'skipped' | 'failed';
+      error?: string;
+    }> = [];
+
+    // Step 3: Process conversion in chunks of 3 for smooth performance and rate limit safety
+    const chunkSize = 3;
+    for (let i = 0; i < fileIds.length; i += chunkSize) {
+      const chunk = fileIds.slice(i, i + chunkSize);
+      await Promise.all(
+        chunk.map(async (sheetId: string) => {
+          let sheetName = '구글 시트 문서';
+          try {
+            // Get sheet metadata
+            const sheetMeta = await drive.files.get({ fileId: sheetId, fields: 'id, name' });
+            sheetName = sheetMeta.data.name || sheetName;
+
+            const excelFileName = sheetName.endsWith('.xlsx') ? sheetName : `${sheetName}.xlsx`;
+            const lowerExcelName = excelFileName.trim().toLowerCase();
+
+            // Export as XLSX buffer from Google Drive API
+            const exportRes = await drive.files.export(
+              {
+                fileId: sheetId,
+                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              },
+              { responseType: 'arraybuffer' }
+            );
+
+            const buffer = Buffer.from(exportRes.data as ArrayBuffer);
+            const sizeKb = parseFloat((buffer.length / 1024).toFixed(1));
+
+            // Check if file already exists in target folder
+            if (existingFileMap.has(lowerExcelName)) {
+              const existingFile = existingFileMap.get(lowerExcelName)!;
+              if (overwrite) {
+                // Update existing file content
+                const updateRes = await drive.files.update({
+                  fileId: existingFile.id,
+                  media: {
+                    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    body: Readable.from(buffer),
+                  },
+                  fields: 'id, name, webViewLink',
+                });
+                results.push({
+                  sheetId,
+                  sheetName,
+                  excelId: existingFile.id,
+                  excelName: excelFileName,
+                  excelUrl: updateRes.data.webViewLink || existingFile.url,
+                  sizeKb,
+                  status: 'updated',
+                });
+              } else {
+                results.push({
+                  sheetId,
+                  sheetName,
+                  excelId: existingFile.id,
+                  excelName: excelFileName,
+                  excelUrl: existingFile.url,
+                  sizeKb,
+                  status: 'skipped',
+                });
+              }
+            } else {
+              // Create brand new .xlsx file in target folder
+              const createRes = await drive.files.create({
+                requestBody: {
+                  name: excelFileName,
+                  mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  parents: [targetFolderId],
+                },
+                media: {
+                  mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                  body: Readable.from(buffer),
+                },
+                fields: 'id, name, webViewLink',
+              });
+
+              const newFileId = createRes.data.id || '';
+              const newFileUrl = createRes.data.webViewLink || `https://drive.google.com/file/d/${newFileId}/view`;
+
+              existingFileMap.set(lowerExcelName, { id: newFileId, url: newFileUrl });
+
+              results.push({
+                sheetId,
+                sheetName,
+                excelId: newFileId,
+                excelName: excelFileName,
+                excelUrl: newFileUrl,
+                sizeKb,
+                status: 'converted',
+              });
+            }
+          } catch (itemErr: any) {
+            console.error(`Error converting sheet '${sheetName}' (${sheetId}):`, itemErr);
+            results.push({
+              sheetId,
+              sheetName,
+              excelId: '',
+              excelName: `${sheetName}.xlsx`,
+              excelUrl: '',
+              sizeKb: 0,
+              status: 'failed',
+              error: itemErr.message || '변환 실패',
+            });
+          }
+        })
+      );
+    }
+
+    const totalConverted = results.filter((r) => r.status === 'converted' || r.status === 'updated').length;
+    const totalSkipped = results.filter((r) => r.status === 'skipped').length;
+    const totalFailed = results.filter((r) => r.status === 'failed').length;
+
+    return res.json({
+      success: true,
+      targetFolder: {
+        id: targetFolderId,
+        name: targetFolderName,
+        url: targetFolderUrl,
+      },
+      results,
+      totalRequested: fileIds.length,
+      totalConverted,
+      totalSkipped,
+      totalFailed,
+      message: `총 ${totalConverted}개 구글시트가 엑셀(.xlsx) 파일로 변환되어 '${targetFolderName}' 폴더에 성공적으로 저장되었습니다!`,
+    });
+  } catch (err: any) {
+    console.error('Batch Convert Sheets to Excel Error:', err);
+    return res.status(500).json({ error: err.message || '구글시트 엑셀 일괄 변환 중 오류가 발생했습니다.' });
+  }
+});
+
+// 4. Download single Google Sheet as direct .xlsx file
+app.post('/api/drive/download-single-sheet-xlsx', async (req, res) => {
+  try {
+    const { accessToken, sheetId, sheetName } = req.body;
+    if (!accessToken || !sheetId) {
+      return res.status(400).json({ error: 'Google OAuth Access Token 및 Sheet ID가 필요합니다.' });
+    }
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth });
+
+    const cleanTitle = (sheetName || `GoogleSheet_${sheetId}`).replace(/[\/\\:*?"<>|]/g, '_');
+    const fileName = cleanTitle.endsWith('.xlsx') ? cleanTitle : `${cleanTitle}.xlsx`;
+
+    const exportRes = await drive.files.export(
+      {
+        fileId: sheetId,
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+      { responseType: 'arraybuffer' }
+    );
+
+    const buffer = Buffer.from(exportRes.data as ArrayBuffer);
+    const encodedFileName = encodeURIComponent(fileName);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedFileName}"; filename*=UTF-8''${encodedFileName}`);
+    return res.send(buffer);
+  } catch (err: any) {
+    console.error('Download Single Sheet XLSX Error:', err);
+    return res.status(500).json({ error: err.message || '엑셀 다운로드 중 오류가 발생했습니다.' });
+  }
+});
+
+// 5. Batch export multiple Google Sheets into a ZIP file for direct PC download
+app.post('/api/drive/batch-download-sheets-zip', async (req, res) => {
+  try {
+    const { accessToken, sheets, zipName = '구글시트_엑셀변환_일괄다운로드' } = req.body;
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Google OAuth Access Token이 필요합니다.' });
+    }
+    if (!sheets || !Array.isArray(sheets) || sheets.length === 0) {
+      return res.status(400).json({ error: '다운로드할 구글시트를 최소 1개 이상 선택해 주세요.' });
+    }
+
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    const drive = google.drive({ version: 'v3', auth });
+
+    const zip = new JSZip();
+
+    // Export each sheet into buffer and add to ZIP
+    const chunkSize = 3;
+    for (let i = 0; i < sheets.length; i += chunkSize) {
+      const chunk = sheets.slice(i, i + chunkSize);
+      await Promise.all(
+        chunk.map(async (item: { id: string; name: string }, idx: number) => {
+          try {
+            const rawTitle = item.name || `Sheet_${i + idx + 1}`;
+            const cleanTitle = rawTitle.replace(/[\/\\:*?"<>|]/g, '_');
+            const fileName = cleanTitle.endsWith('.xlsx') ? cleanTitle : `${cleanTitle}.xlsx`;
+
+            const exportRes = await drive.files.export(
+              {
+                fileId: item.id,
+                mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+              },
+              { responseType: 'arraybuffer' }
+            );
+
+            const buffer = Buffer.from(exportRes.data as ArrayBuffer);
+            zip.file(fileName, buffer);
+          } catch (expErr) {
+            console.warn(`Warning exporting sheet '${item.name}' for zip:`, expErr);
+          }
+        })
+      );
+    }
+
+    const zipBuffer = await zip.generateAsync({
+      type: 'nodebuffer',
+      compression: 'DEFLATE',
+      compressionOptions: { level: 6 },
+    });
+
+    const finalZipName = `${zipName.replace(/[\/\\:*?"<>|]/g, '_')}.zip`;
+    const encodedZipName = encodeURIComponent(finalZipName);
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodedZipName}"; filename*=UTF-8''${encodedZipName}`);
+    return res.send(zipBuffer);
+  } catch (err: any) {
+    console.error('Batch Download Sheets ZIP Error:', err);
+    return res.status(500).json({ error: err.message || 'ZIP 일괄 압축 다운로드 중 오류가 발생했습니다.' });
   }
 });
 

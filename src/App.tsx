@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { OcKeyModal } from './components/OcKeyModal';
 import { UnifiedSearchAndDriveExporter } from './components/UnifiedSearchAndDriveExporter';
+import { DriveSheetToExcelConverter } from './components/DriveSheetToExcelConverter';
 import { LawFetcher } from './components/LawFetcher';
 import { GoogleSheetsExporter } from './components/GoogleSheetsExporter';
 import { LawViewer } from './components/LawViewer';
@@ -17,6 +18,7 @@ import {
   Gavel,
   Building2,
   HardDrive,
+  FolderArchive,
   Sparkles,
   ShieldCheck,
   Search
@@ -32,7 +34,7 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Active View Tab (Default to new Google Drive unified manager)
-  const [activeTab, setActiveTab] = useState<'unified' | 'sync' | 'admRules' | 'decisions2026' | 'viewer'>('unified');
+  const [activeTab, setActiveTab] = useState<'unified' | 'excelConverter' | 'sync' | 'admRules' | 'decisions2026' | 'viewer'>('unified');
 
   // Selected Revision & Law Data for classic tabs
   const [selectedRevision, setSelectedRevision] = useState<LawRevisionItem | null>(null);
@@ -169,12 +171,25 @@ export default function App() {
             >
               <HardDrive className="w-4 h-4" />
               <span>법령 · 행정규칙 드라이브 연동</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 text-white font-bold">
-                신규
+            </button>
+
+            {/* Tab 2: Drive Sheets to Excel Converter */}
+            <button
+              onClick={() => setActiveTab('excelConverter')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                activeTab === 'excelConverter'
+                  ? 'bg-emerald-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-700 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              <FolderArchive className="w-4 h-4 text-emerald-300" />
+              <span>드라이브 시트 ➔ 엑셀 일괄 변환</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/30 text-white font-extrabold">
+                XLSX
               </span>
             </button>
 
-            {/* Tab 2: Classic Sync & Sheets */}
+            {/* Tab 3: Classic Sync & Sheets */}
             <button
               onClick={() => setActiveTab('sync')}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
@@ -249,7 +264,16 @@ export default function App() {
           />
         )}
 
-        {/* Tab 2: Classic Sync & Sheets Export */}
+        {/* Tab 2: Drive Sheets to Excel Converter */}
+        {activeTab === 'excelConverter' && (
+          <DriveSheetToExcelConverter
+            user={user}
+            needsAuth={needsAuth}
+            onSignIn={handleSignIn}
+          />
+        )}
+
+        {/* Tab 3: Classic Sync & Sheets Export */}
         {activeTab === 'sync' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-7 space-y-8">

@@ -1,6 +1,6 @@
 {
   "name": "관세법 구글 스프레드시트 자동 저장 도구",
-  "description": "국가법령정보 오픈API(법령 및 행정규칙 target=admrul)와 UNIPASS CLIP 결정사례 데이터를 수집하여 Google Drive v3 폴더 관리 및 Google Sheets로 자동 저장·내보내기하는 도구입니다.",
+  "description": "국가법령정보 오픈API(법령 및 행정규칙 target=admrul)와 UNIPASS CLIP 결정사례 데이터를 수집하여 Google Drive v3 폴더 관리 및 Google Sheets/Excel(.xlsx) 일괄 변환·자동 저장·내보내기하는 전문 도구입니다.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
