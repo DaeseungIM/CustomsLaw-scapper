@@ -19,7 +19,7 @@ provider.addScope('https://www.googleapis.com/auth/drive.file');
 provider.addScope('https://www.googleapis.com/auth/drive');
 
 let isSigningIn = false;
-let cachedAccessToken: string | null = null;
+let cachedAccessToken: string | null = typeof window !== 'undefined' ? localStorage.getItem('google_access_token') : null;
 
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
@@ -29,12 +29,14 @@ export const initAuth = (
     if (user) {
       if (cachedAccessToken) {
         if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        // Token might be needed from a fresh login
+      } else {
         if (onAuthFailure) onAuthFailure();
       }
     } else {
       cachedAccessToken = null;
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('google_access_token');
+      }
       if (onAuthFailure) onAuthFailure();
     }
   });
@@ -46,10 +48,13 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     const result = await signInWithPopup(auth, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
-      throw new Error('Google OAuth 인증 토큰을 받지 못했습니다.');
+      throw new Error('Google OAuth 인증 토큰을 받지 못했습니다. 팝업에서 권한을 허용해 주세요.');
     }
 
     cachedAccessToken = credential.accessToken;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('google_access_token', cachedAccessToken);
+    }
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Google Sign In Error:', error);
@@ -60,14 +65,24 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = (): string | null => {
+  if (!cachedAccessToken && typeof window !== 'undefined') {
+    cachedAccessToken = localStorage.getItem('google_access_token');
+  }
   return cachedAccessToken;
 };
 
 export const setCachedToken = (token: string) => {
   cachedAccessToken = token;
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('google_access_token', token);
+  }
 };
 
 export const logout = async () => {
   await signOut(auth);
   cachedAccessToken = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('google_access_token');
+  }
 };
+

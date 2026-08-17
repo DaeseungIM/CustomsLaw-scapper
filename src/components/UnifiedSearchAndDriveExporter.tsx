@@ -151,8 +151,8 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
         // By default, select all revisions
         const initialSelected: Record<string, boolean> = {};
         revList.forEach((r, idx) => {
-          // Select up to top 5 by default if more than 20 for convenience, or all
-          initialSelected[r.id || `${r.seq}_${idx}`] = true;
+          const revKey = `${r.id || r.seq || 'rev'}_${r.enforcementDate || ''}_${idx}`;
+          initialSelected[revKey] = true;
         });
         setSelectedRevisions(initialSelected);
       }
@@ -175,7 +175,8 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
   const handleSelectAll = (check: boolean) => {
     const next: Record<string, boolean> = {};
     revisions.forEach((r, idx) => {
-      next[r.id || `${r.seq}_${idx}`] = check;
+      const revKey = `${r.id || r.seq || 'rev'}_${r.enforcementDate || ''}_${idx}`;
+      next[revKey] = check;
     });
     setSelectedRevisions(next);
   };
@@ -207,7 +208,10 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
       return;
     }
 
-    const chosenRevisions = revisions.filter((r, idx) => selectedRevisions[r.id || `${r.seq}_${idx}`]);
+    const chosenRevisions = revisions.filter((r, idx) => {
+      const revKey = `${r.id || r.seq || 'rev'}_${r.enforcementDate || ''}_${idx}`;
+      return selectedRevisions[revKey];
+    });
 
     setProgress({
       isSaving: true,
@@ -455,11 +459,12 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-56 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-200">
-              {searchResults.map((item) => {
+              {searchResults.map((item, idx) => {
                 const isSelected = selectedItem?.id === item.id || selectedItem?.name === item.name;
+                const uniqueKey = `${item.targetType}_${item.id || ''}_${item.seq || ''}_${item.name || ''}_${idx}`;
                 return (
                   <div
-                    key={`${item.targetType}_${item.id}_${item.seq}`}
+                    key={uniqueKey}
                     onClick={() => handleSelectItem(item)}
                     className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                       isSelected
@@ -607,7 +612,7 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
                   </thead>
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {revisions.map((rev, idx) => {
-                      const idKey = rev.id || `${rev.seq}_${idx}`;
+                      const idKey = `${rev.id || rev.seq || 'rev'}_${rev.enforcementDate || ''}_${idx}`;
                       const isChecked = !!selectedRevisions[idKey];
                       return (
                         <tr

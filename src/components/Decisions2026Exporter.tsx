@@ -920,7 +920,7 @@ export function Decisions2026Exporter({
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
                 {filteredDecisions.map((item, index) => (
                   <tr
-                    key={item.id || index}
+                    key={`${item.id || item.caseNo || 'dec'}_${item.decisionDate || ''}_${index}`}
                     className="hover:bg-slate-800/40 transition-colors"
                   >
                     <td className="py-3.5 px-3 text-center font-mono text-slate-500">
