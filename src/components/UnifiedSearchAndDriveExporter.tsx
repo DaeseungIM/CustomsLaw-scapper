@@ -33,6 +33,7 @@ import {
   UserProfile
 } from '../types';
 import { getAccessToken } from '../lib/firebase';
+import { safeFetchJson } from '../lib/apiHelper';
 import { DrivePermissionModal } from './DrivePermissionModal';
 
 interface UnifiedSearchAndDriveExporterProps {
@@ -105,14 +106,13 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
     setProgress((prev) => ({ ...prev, savedSheets: [], folderInfo: null, error: null }));
 
     try {
-      const res = await fetch(
+      const data = await safeFetchJson<any>(
         `/api/unified/search?ocKey=${encodeURIComponent(ocKey)}&targetType=${targetType}&query=${encodeURIComponent(
           q || (targetType === 'admrul' ? '관세' : '관세법')
         )}&display=500`
       );
-      const data = await res.json();
 
-      if (res.ok && data.success) {
+      if (data.success) {
         setSearchResults(data.results || []);
         if (data.results && data.results.length > 0) {
           // Auto-select first item
@@ -137,14 +137,13 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
     setProgress((prev) => ({ ...prev, savedSheets: [], folderInfo: null, error: null }));
 
     try {
-      const res = await fetch(
+      const data = await safeFetchJson<any>(
         `/api/unified/revisions?ocKey=${encodeURIComponent(ocKey)}&targetType=${item.targetType}&name=${encodeURIComponent(
           item.name
         )}`
       );
-      const data = await res.json();
 
-      if (res.ok && data.success) {
+      if (data.success) {
         const revList: UnifiedRevisionItem[] = data.revisions || [];
         setRevisions(revList);
 
@@ -232,7 +231,7 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
         message: `폴더를 확인하고 ${chosenRevisions.length}개의 개정본 데이터를 순차 생성합니다...`,
       }));
 
-      const res = await fetch('/api/drive/export-revision-sheets', {
+      const data = await safeFetchJson<any>('/api/drive/export-revision-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -246,9 +245,7 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || 'Google Drive 저장 중 오류가 발생했습니다.');
       }
 
@@ -298,7 +295,7 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
     setRevokeSuccessMessage(null);
 
     try {
-      const res = await fetch('/api/drive/permissions/revoke', {
+      const data = await safeFetchJson<any>('/api/drive/permissions/revoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -308,8 +305,7 @@ export const UnifiedSearchAndDriveExporter: React.FC<UnifiedSearchAndDriveExport
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || '권한 해제 실패');
       }
 

@@ -87,7 +87,7 @@ function sortRevisionsByEnforcementDateDesc(revisions: any[]): any[] {
   });
 }
 
-// Helper to fetch all revisions for any Law (법률 - 관세법 140회, 외국환거래법 45회 등)
+// Helper to fetch all revisions for any Law (법률 - 관세법 141회, 외국환거래법 등 전수 페이지네이션 수집)
 async function fetchLawRevisions(
   ocKey: string = DEFAULT_OC_KEY,
   lawName: string = '관세법',
@@ -95,76 +95,102 @@ async function fetchLawRevisions(
 ): Promise<any[]> {
   try {
     const cleanQuery = (lawName || '관세법').trim();
-    const searchUrl = `http://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(
-      ocKey
-    )}&target=eflaw&query=${encodeURIComponent(cleanQuery)}&display=500&type=XML`;
-
-    console.log(`[Law Revisions Search] Query: ${cleanQuery}, Fetching: ${searchUrl}`);
-    const response = await fetch(searchUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-    });
-
-    if (!response.ok) {
-      console.warn(`[Law Revisions] Response not OK (${response.status}) for ${cleanQuery}`);
-      return [];
-    }
-
-    const xmlText = await response.text();
-    const parsed = xmlParser.parse(xmlText);
-    const searchRoot = parsed.LawSearch || parsed.lawSearch || parsed;
-    let lawList = searchRoot.law || searchRoot.Law || [];
-    if (!Array.isArray(lawList)) lawList = lawList ? [lawList] : [];
-
-    // Filter strictly for target law name (e.g. '관세법' only, strictly exclude '관세법 시행령', '관세법 시행규칙')
     const cleanNoSpace = cleanQuery.replace(/\s+/g, '');
-    const filtered = lawList.filter((item: any) => {
-      const itemNm = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']).trim();
-      const itemNoSpace = itemNm.replace(/\s+/g, '');
-      const lawType = getText(item.법령구분명 || item.법령종류 || '');
+    const collectedMap = new Map<string, any>();
+    let emptyStreak = 0;
 
-      // Strict exact match for law name
-      const isExactName = itemNm === cleanQuery || itemNoSpace === cleanNoSpace;
-      if (!isExactName) return false;
+    // DRF lawSearch pagination: iterate through pages to collect all 141+ revisions
+    for (let page = 1; page <= 20; page++) {
+      const searchUrl = `http://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(
+        ocKey
+      )}&target=eflaw&query=${encodeURIComponent(cleanQuery)}&page=${page}&display=100&type=XML`;
 
-      // If cleanQuery does not specify 시행규칙 or 시행령, exclude them strictly
-      if (lawType) {
-        if (lawType.includes('시행규칙') || lawType.includes('규칙') || lawType.includes('시행령') || lawType.includes('대통령령') || lawType.includes('부령')) {
-          if (!cleanQuery.includes('시행규칙') && !cleanQuery.includes('시행령') && !cleanQuery.includes('규칙') && !cleanQuery.includes('령')) {
-            return false;
+      console.log(`[Law Revisions Search] Query: ${cleanQuery}, Page ${page}: ${searchUrl}`);
+      const response = await fetch(searchUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      });
+
+      if (!response.ok) {
+        console.warn(`[Law Revisions] Response not OK (${response.status}) for ${cleanQuery} page ${page}`);
+        break;
+      }
+
+      const xmlText = await response.text();
+      const parsed = xmlParser.parse(xmlText);
+      const searchRoot = parsed.LawSearch || parsed.lawSearch || parsed;
+      let lawList = searchRoot.law || searchRoot.Law || [];
+      if (!Array.isArray(lawList)) lawList = lawList ? [lawList] : [];
+      if (lawList.length === 0) break;
+
+      let foundInThisPage = 0;
+      for (const item of lawList) {
+        const itemNm = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']).trim();
+        const itemNoSpace = itemNm.replace(/\s+/g, '');
+        const lawType = getText(item.법령구분명 || item.법령종류 || '');
+
+        // Strict exact match for law name
+        const isExactName = itemNm === cleanQuery || itemNoSpace === cleanNoSpace;
+        if (!isExactName) continue;
+
+        // If cleanQuery does not specify 시행규칙 or 시행령, exclude them strictly
+        if (lawType) {
+          if (lawType.includes('시행규칙') || lawType.includes('규칙') || lawType.includes('시행령') || lawType.includes('대통령령') || lawType.includes('부령')) {
+            if (!cleanQuery.includes('시행규칙') && !cleanQuery.includes('시행령') && !cleanQuery.includes('규칙') && !cleanQuery.includes('령')) {
+              continue;
+            }
           }
         }
+
+        const rawPromNo = getText(item.공포번호);
+        let formattedPromNo = rawPromNo;
+        if (rawPromNo && !rawPromNo.startsWith('법률') && !rawPromNo.startsWith('제') && !rawPromNo.startsWith('대통령령')) {
+          const digits = rawPromNo.replace(/[^0-9]/g, '');
+          formattedPromNo = digits ? `법률 제${digits}호` : rawPromNo;
+        } else if (rawPromNo && !rawPromNo.startsWith('법률') && rawPromNo.startsWith('제')) {
+          formattedPromNo = `법률 ${rawPromNo}`;
+        }
+
+        const lawId = getText(item.법령ID || item.lawId || item.MST || item.법령일련번호);
+        const lawMst = getText(item.법령일련번호 || item.MST || item.mst || item.법령ID);
+        const enfDate = formatDate(getText(item.시행일자));
+        const promDate = formatDate(getText(item.공포일자));
+        const uniqueKey = `${lawMst}_${enfDate}_${promDate}_${formattedPromNo}`;
+
+        if (!collectedMap.has(uniqueKey)) {
+          collectedMap.set(uniqueKey, {
+            lawId,
+            lawMst,
+            id: lawMst || lawId,
+            seq: lawMst || lawId,
+            lawName: itemNm || cleanQuery,
+            name: itemNm || cleanQuery,
+            promulgationDate: promDate,
+            promulgationNo: formattedPromNo,
+            enforcementDate: enfDate,
+            revisionType: getText(item.제개정구분명 || item.제개정구분 || '일부개정'),
+            department: getText(item.소관부처명 || item.소관부처 || '기획재정부'),
+            lawType: lawType || '법률',
+            ruleType: lawType || '법률',
+            targetType: 'law',
+          });
+          foundInThisPage++;
+        }
       }
-      return true;
-    });
 
-    const listToMap = filtered;
-
-    const mapped = listToMap.map((item: any) => {
-      const rawPromNo = getText(item.공포번호);
-      const lawType = getText(item.법령구분명 || item.법령종류 || '법률');
-
-      let formattedPromNo = rawPromNo;
-      if (rawPromNo && !rawPromNo.startsWith('법률') && !rawPromNo.startsWith('제') && !rawPromNo.startsWith('대통령령')) {
-        const digits = rawPromNo.replace(/[^0-9]/g, '');
-        formattedPromNo = digits ? `법률 제${digits}호` : rawPromNo;
-      } else if (rawPromNo && !rawPromNo.startsWith('법률') && rawPromNo.startsWith('제')) {
-        formattedPromNo = `법률 ${rawPromNo}`;
+      if (foundInThisPage === 0) {
+        emptyStreak++;
+        if (emptyStreak >= 2 && collectedMap.size > 0) {
+          break;
+        }
+      } else {
+        emptyStreak = 0;
       }
 
-      return {
-        lawId: getText(item.법령ID || item.lawId || item.MST || item.법령일련번호),
-        lawMst: getText(item.법령일련번호 || item.MST || item.mst || item.법령ID),
-        lawName: getText(item.법령명한글 || item.법령명_한글 || cleanQuery),
-        promulgationDate: formatDate(getText(item.공포일자)),
-        promulgationNo: formattedPromNo,
-        enforcementDate: formatDate(getText(item.시행일자)),
-        revisionType: getText(item.제개정구분명 || item.제개정구분 || '일부개정'),
-        department: getText(item.소관부처명 || item.소관부처 || '기획재정부'),
-        lawType: lawType,
-        targetType: 'law',
-      };
-    });
+      if (lawList.length < 100) break;
+    }
 
+    const mapped = Array.from(collectedMap.values());
+    console.log(`[Law Revisions Search] Total collected exact revisions for '${cleanQuery}': ${mapped.length}`);
     const sorted = sortRevisionsByEnforcementDateDesc(mapped);
     return limit > 0 ? sorted.slice(0, limit) : sorted;
   } catch (err) {
@@ -173,7 +199,7 @@ async function fetchLawRevisions(
   }
 }
 
-// Helper to fetch all 140 revisions for Customs Act (관세법)
+// Helper to fetch all 140+ revisions for Customs Act (관세법)
 async function fetchAll140Revisions(ocKey: string = DEFAULT_OC_KEY): Promise<any[]> {
   return fetchLawRevisions(ocKey, '관세법', 0);
 }
@@ -1283,68 +1309,20 @@ app.get('/api/unified/revisions', async (req, res) => {
       const sortedAdmrul = sortRevisionsByEnforcementDateDesc(revisions);
       return res.json({ success: true, count: sortedAdmrul.length, revisions: sortedAdmrul });
     } else {
-      const searchUrl = `http://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(
-        ocKey
-      )}&target=eflaw&query=${encodeURIComponent(name || '관세법')}&display=500&type=XML`;
-
-      console.log(`[Unified Revisions: Law] Fetching: ${searchUrl}`);
-      const response = await fetch(searchUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-      });
-
-      if (!response.ok) {
-        return res.status(response.status).json({ error: '법령 연혁 조회 실패' });
-      }
-
-      const xmlText = await response.text();
-      const parsed = xmlParser.parse(xmlText);
-      const searchRoot = parsed.LawSearch || parsed.lawSearch || parsed;
-      let rawList = searchRoot.law || searchRoot.Law || [];
-      if (!Array.isArray(rawList)) rawList = rawList ? [rawList] : [];
-
-      const cleanQuery = (name || '관세법').trim();
-      const cleanNoSpace = cleanQuery.replace(/\s+/g, '');
-      const filtered = rawList.filter((item: any) => {
-        const itemNm = getText(item.법령명한글 || item.법령명_한글 || item.lawName || item['#text']).trim();
-        const itemNoSpace = itemNm.replace(/\s+/g, '');
-        const lawType = getText(item.법령구분명 || item.법령종류 || '');
-
-        const isExactName = itemNm === cleanQuery || itemNoSpace === cleanNoSpace;
-        if (!isExactName) return false;
-
-        if (lawType) {
-          if (lawType.includes('시행규칙') || lawType.includes('규칙') || lawType.includes('시행령') || lawType.includes('대통령령') || lawType.includes('부령')) {
-            if (!cleanQuery.includes('시행규칙') && !cleanQuery.includes('시행령') && !cleanQuery.includes('규칙') && !cleanQuery.includes('령')) {
-              return false;
-            }
-          }
-        }
-        return true;
-      });
-
-      const revisions = filtered.map((item: any) => {
-        const rawPromNo = getText(item.공포번호);
-        const lawType = getText(item.법령구분명 || item.법령종류 || '법률');
-
-        let formattedPromNo = rawPromNo;
-        if (rawPromNo && !rawPromNo.startsWith('법률') && !rawPromNo.startsWith('제') && !rawPromNo.startsWith('대통령령')) {
-          const digits = rawPromNo.replace(/[^0-9]/g, '');
-          formattedPromNo = digits ? `법률 제${digits}호` : rawPromNo;
-        }
-
-        return {
-          id: getText(item.법령일련번호 || item.MST || item.mst || item.법령ID),
-          seq: getText(item.법령일련번호 || item.MST || item.mst || item.법령ID),
-          name: getText(item.법령명한글 || item.법령명_한글 || name),
-          targetType: 'law',
-          promulgationDate: formatDate(getText(item.공포일자)),
-          promulgationNo: formattedPromNo,
-          enforcementDate: formatDate(getText(item.시행일자)),
-          revisionType: getText(item.제개정구분명 || item.제개정구분 || '일부개정'),
-          department: getText(item.소관부처명 || item.소관부처 || '기획재정부'),
-          ruleType: lawType,
-        };
-      });
+      const cleanName = (name || '관세법').trim();
+      const lawRevs = await fetchLawRevisions(ocKey, cleanName, 0);
+      const revisions = lawRevs.map((item: any) => ({
+        id: item.lawMst || item.lawId || item.id || item.seq,
+        seq: item.lawMst || item.lawId || item.id || item.seq,
+        name: item.lawName || cleanName,
+        targetType: 'law',
+        promulgationDate: item.promulgationDate || '',
+        promulgationNo: item.promulgationNo || '',
+        enforcementDate: item.enforcementDate || '',
+        revisionType: item.revisionType || '일부개정',
+        department: item.department || '기획재정부',
+        ruleType: item.lawType || '법률',
+      }));
 
       const sortedLaw = sortRevisionsByEnforcementDateDesc(revisions);
       return res.json({ success: true, count: sortedLaw.length, revisions: sortedLaw });
@@ -1872,51 +1850,11 @@ app.post('/api/sheets/save', async (req, res) => {
       throw new Error('Google Spreadsheet 생성 또는 ID 추출 실패');
     }
 
-    // Fetch full 140 revision history records if not sent in request body
+    // Fetch full 140+ revision history records if not sent in request body
     let revisionList: any[] = req.body.revisions || [];
     if (!Array.isArray(revisionList) || revisionList.length === 0) {
       try {
-        const searchUrl = `http://www.law.go.kr/DRF/lawSearch.do?OC=${encodeURIComponent(
-          ocKey
-        )}&target=eflaw&query=${encodeURIComponent('관세법')}&display=500&type=XML`;
-
-        const searchRes = await fetch(searchUrl, {
-          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        });
-
-        if (searchRes.ok) {
-          const searchXml = await searchRes.text();
-          const parsed = xmlParser.parse(searchXml);
-          const searchRoot = parsed.LawSearch || parsed.lawSearch || parsed;
-          let lawList = searchRoot.law || searchRoot.Law || [];
-          if (!Array.isArray(lawList)) lawList = [lawList];
-
-          const filtered = lawList.filter(
-            (item: any) => getText(item.법령명한글 || item.법령명_한글 || item['#text']) === '관세법'
-          );
-
-          revisionList = filtered.map((item: any) => {
-            const rawPromNo = getText(item.공포번호);
-            let formattedPromNo = rawPromNo;
-            if (rawPromNo && !rawPromNo.startsWith('법률') && !rawPromNo.startsWith('제') && !rawPromNo.startsWith('대통령령')) {
-              const digits = rawPromNo.replace(/[^0-9]/g, '');
-              formattedPromNo = digits ? `법률 제${digits}호` : rawPromNo;
-            } else if (rawPromNo && !rawPromNo.startsWith('법률') && rawPromNo.startsWith('제')) {
-              formattedPromNo = `법률 ${rawPromNo}`;
-            }
-
-            return {
-              lawId: getText(item.법령일련번호 || item['@_법령일련번호'] || item.lawId),
-              lawMst: getText(item.법령일련번호 || item.MST || item.mst || item.법령ID),
-              lawName: getText(item.법령명한글 || item.법령명_한글 || item.lawName || '관세법'),
-              promulgationDate: formatDate(getText(item.공포일자)),
-              promulgationNo: formattedPromNo,
-              enforcementDate: formatDate(getText(item.시행일자)),
-              revisionType: getText(item.제개정구분명 || item.제개정구분 || '일부개정'),
-              department: getText(item.소관부처명 || item.소관부처 || '기획재정부'),
-            };
-          });
-        }
+        revisionList = await fetchAll140Revisions(ocKey);
       } catch (revErr: any) {
         console.warn('Auto-fetching revisions error:', revErr?.message || revErr);
       }
@@ -1924,7 +1862,7 @@ app.post('/api/sheets/save', async (req, res) => {
 
     // Inspect existing spreadsheet structure
     let existingSheetTitles: string[] = [];
-    let historySheetName = '관세법 개정연혁 (140건)';
+    let historySheetName = `관세법 개정연혁 (${revisionList.length}건)`;
     let overviewSheetName = '관세법 개요';
     let articlesSheetName = '조문 목록';
 
@@ -1934,8 +1872,12 @@ app.post('/api/sheets/save', async (req, res) => {
       existingSheetTitles = sheetsList.map((s) => s.properties?.title || '').filter(Boolean);
 
       const requestsToAdd: any[] = [];
-      if (!existingSheetTitles.includes('관세법 개정연혁 (140건)')) {
-        requestsToAdd.push({ addSheet: { properties: { title: '관세법 개정연혁 (140건)' } } });
+      const hasHistoryTab = existingSheetTitles.some((t) => t.includes('개정연혁'));
+      if (!hasHistoryTab) {
+        requestsToAdd.push({ addSheet: { properties: { title: historySheetName } } });
+      } else {
+        const found = existingSheetTitles.find((t) => t.includes('개정연혁'));
+        if (found) historySheetName = found;
       }
       if (config?.includeOverview !== false && !existingSheetTitles.includes('관세법 개요')) {
         requestsToAdd.push({ addSheet: { properties: { title: '관세법 개요' } } });
@@ -6542,6 +6484,26 @@ app.post('/api/drive/batch-download-sheets-zip', async (req, res) => {
     console.error('Batch Download Sheets ZIP Error:', err);
     return res.status(500).json({ error: err.message || 'ZIP 일괄 압축 다운로드 중 오류가 발생했습니다.' });
   }
+});
+
+// Explicit API 404 handler to prevent unmatched API routes from falling through to HTML index.html
+app.all('/api/*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: `요청하신 API 엔드포인트를 찾을 수 없습니다: ${req.method} ${req.originalUrl}`,
+  });
+});
+
+// Global API error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  if (req.path.startsWith('/api/')) {
+    console.error(`[API Uncaught Error] ${req.method} ${req.path}:`, err);
+    return res.status(500).json({
+      success: false,
+      error: err?.message || '서버 내부 처리 중 오류가 발생했습니다.',
+    });
+  }
+  next(err);
 });
 
 async function startServer() {

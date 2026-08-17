@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LawRevisionItem } from '../types';
+import { safeFetchJson } from '../lib/apiHelper';
 import {
   ChevronDown,
   Search,
@@ -52,20 +53,47 @@ export const LawRevisionCombobox: React.FC<LawRevisionComboboxProps> = ({
     setFetchError(null);
 
     try {
-      const res = await fetch(`/api/law/search?ocKey=${encodeURIComponent(ocKey)}&query=관세법&display=500`);
-      const data = await res.json();
+      // First try unified revisions endpoint which paginates and retrieves all 141+ revisions
+      let data: any;
+      try {
+        data = await safeFetchJson<any>(`/api/unified/revisions?ocKey=${encodeURIComponent(ocKey)}&targetType=law&name=${encodeURIComponent('관세법')}`);
+      } catch {
+        data = null;
+      }
 
-      if (res.ok && data.success && Array.isArray(data.results)) {
-        // Strictly filter for exact '관세법' only (removing unrelated laws like 한국해양수산연수원법)
-        const exactRevisions = data.results.filter((r: LawRevisionItem) => r.lawName === '관세법');
-        setRevisions(exactRevisions);
+      if (data && data.success && Array.isArray(data.revisions) && data.revisions.length > 0) {
+        const mappedList: LawRevisionItem[] = data.revisions.map((r: any) => ({
+          lawId: r.id || r.seq || '',
+          lawMst: r.id || r.seq || '',
+          lawName: r.name || '관세법',
+          promulgationDate: r.promulgationDate || '',
+          promulgationNo: r.promulgationNo || '',
+          enforcementDate: r.enforcementDate || '',
+          revisionType: r.revisionType || '일부개정',
+          department: r.department || '기획재정부',
+          lawType: r.ruleType || '법률',
+        }));
+        
+        const exactRevisions = mappedList.filter((r) => r.lawName === '관세법');
+        setRevisions(exactRevisions.length > 0 ? exactRevisions : mappedList);
         
         // Automatically select the first/latest exact "관세법" if none selected yet
-        if (!selectedRevision && exactRevisions.length > 0) {
-          onSelectRevision(exactRevisions[0]);
+        if (!selectedRevision && (exactRevisions[0] || mappedList[0])) {
+          onSelectRevision(exactRevisions[0] || mappedList[0]);
         }
       } else {
-        setFetchError(data.error || '개정 이력을 불러올 수 없습니다.');
+        // Fallback to law search endpoint if needed
+        const fallbackData = await safeFetchJson<any>(`/api/law/search?ocKey=${encodeURIComponent(ocKey)}&query=관세법&display=500`);
+
+        if (fallbackData.success && Array.isArray(fallbackData.results)) {
+          const exactRevisions = fallbackData.results.filter((r: LawRevisionItem) => r.lawName === '관세법');
+          setRevisions(exactRevisions);
+          if (!selectedRevision && exactRevisions.length > 0) {
+            onSelectRevision(exactRevisions[0]);
+          }
+        } else {
+          setFetchError(fallbackData?.error || '개정 이력을 불러올 수 없습니다.');
+        }
       }
     } catch (err: any) {
       console.error('Failed to load law revisions:', err);

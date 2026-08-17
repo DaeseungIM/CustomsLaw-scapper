@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import { generateHsk18823FullRows, cleanAndCollectHskExcelRows } from '../lib/generateHsk18823Data';
 import { getAccessToken } from '../lib/firebase';
+import { safeFetchJson } from '../lib/apiHelper';
 import {
   FileSpreadsheet,
   X,
@@ -188,7 +189,7 @@ export function HskPreviewModal({
         fileBase64 = await fileToBase64(uploadedFile);
       }
 
-      const res = await fetch('/api/export-hsk-excel-sheets', {
+      const data = await safeFetchJson<any>('/api/export-hsk-excel-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -198,8 +199,7 @@ export function HskPreviewModal({
         })
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || '구글시트 반영에 실패했습니다.');
       }
 

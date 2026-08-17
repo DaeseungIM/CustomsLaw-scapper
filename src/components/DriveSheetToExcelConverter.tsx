@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { UserProfile } from '../types';
 import { getAccessToken } from '../lib/firebase';
+import { safeFetchJson, parseResponseSafely } from '../lib/apiHelper';
 import {
   FileSpreadsheet,
   FolderSync,
@@ -129,13 +130,12 @@ export const DriveSheetToExcelConverter: React.FC<DriveSheetToExcelConverterProp
 
     setIsLoadingFolders(true);
     try {
-      const res = await fetch('/api/drive/list-user-folders', {
+      const data = await safeFetchJson<any>('/api/drive/list-user-folders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken: token, query }),
       });
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setRecentFolders(data.folders || []);
       } else {
         console.warn('Folder list warning:', data.error);
@@ -166,7 +166,7 @@ export const DriveSheetToExcelConverter: React.FC<DriveSheetToExcelConverterProp
     setConversionResults(null);
 
     try {
-      const res = await fetch('/api/drive/get-folder-sheets', {
+      const data = await safeFetchJson<any>('/api/drive/get-folder-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -175,8 +175,7 @@ export const DriveSheetToExcelConverter: React.FC<DriveSheetToExcelConverterProp
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setCurrentFolder(data.folder);
         setSheets(data.sheets || []);
         setExcelFiles(data.excelFiles || []);
@@ -238,7 +237,7 @@ export const DriveSheetToExcelConverter: React.FC<DriveSheetToExcelConverterProp
     setConversionProgress({ current: 0, total: selectedSheetIds.length, percent: 0 });
 
     try {
-      const res = await fetch('/api/drive/batch-convert-sheets-to-excel', {
+      const data = await safeFetchJson<any>('/api/drive/batch-convert-sheets-to-excel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -251,8 +250,7 @@ export const DriveSheetToExcelConverter: React.FC<DriveSheetToExcelConverterProp
         }),
       });
 
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setConversionResults(data.results || []);
         setResultFolder(data.targetFolder || currentFolder);
         setStatusMessage({
@@ -315,8 +313,8 @@ export const DriveSheetToExcelConverter: React.FC<DriveSheetToExcelConverterProp
           text: `총 ${selectedSheets.length}개 파일의 엑셀 ZIP 압축 파일('${zipName}.zip')이 다운로드되었습니다.`,
         });
       } else {
-        const errData = await res.json();
-        setStatusMessage({ type: 'error', text: errData.error || 'ZIP 파일 생성 중 오류가 발생했습니다.' });
+        const errData = await parseResponseSafely<any>(res);
+        setStatusMessage({ type: 'error', text: errData?.error || 'ZIP 파일 생성 중 오류가 발생했습니다.' });
       }
     } catch (err: any) {
       setStatusMessage({ type: 'error', text: err.message || 'ZIP 다운로드 중 오류가 발생했습니다.' });
@@ -354,8 +352,8 @@ export const DriveSheetToExcelConverter: React.FC<DriveSheetToExcelConverterProp
         document.body.removeChild(a);
         window.URL.revokeObjectURL(url);
       } else {
-        const errData = await res.json();
-        alert(errData.error || '엑셀 다운로드에 실패했습니다.');
+        const errData = await parseResponseSafely<any>(res);
+        alert(errData?.error || '엑셀 다운로드에 실패했습니다.');
       }
     } catch (err: any) {
       alert('다운로드 중 오류: ' + err.message);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { YearlyDecisionStat } from '../types';
+import { safeFetchJson } from '../lib/apiHelper';
 import {
   BarChart3,
   RefreshCw,
@@ -35,9 +36,8 @@ export function DecisionStatsPanel() {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/decisions/stats?startYear=${startYear}&endYear=${endYear}`);
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data = await safeFetchJson<any>(`/api/decisions/stats?startYear=${startYear}&endYear=${endYear}`);
+      if (data.success) {
         setStats(data.stats || []);
         setTotals(
           data.totals || {
@@ -52,7 +52,7 @@ export function DecisionStatsPanel() {
       }
     } catch (err: any) {
       console.error('Failed to fetch stats:', err);
-      setErrorMsg('서버와 통신 중 오류가 발생했습니다.');
+      setErrorMsg(err.message || '서버와 통신 중 오류가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, CheckCircle2, AlertCircle, RefreshCw, Key, ExternalLink } from 'lucide-react';
+import { safeFetchJson } from '../lib/apiHelper';
 
 interface OcKeyModalProps {
   isOpen: boolean;
@@ -27,8 +28,7 @@ export const OcKeyModal: React.FC<OcKeyModalProps> = ({
     setTesting(true);
     setTestResult(null);
     try {
-      const response = await fetch(`/api/law/search?ocKey=${encodeURIComponent(inputKey.trim())}&query=관세법`);
-      const data = await response.json();
+      const data = await safeFetchJson<any>(`/api/law/search?ocKey=${encodeURIComponent(inputKey.trim())}&query=관세법`);
 
       if (data.success && data.results && data.results.length > 0) {
         setTestResult({

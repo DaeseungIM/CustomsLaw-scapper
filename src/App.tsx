@@ -10,6 +10,7 @@ import { Decisions2026Exporter } from './components/Decisions2026Exporter';
 import { AdmRulesExporter } from './components/AdmRulesExporter';
 import { CustomsActData, ExportConfig, UserProfile, LawRevisionItem } from './types';
 import { initAuth, googleSignIn, logout } from './lib/firebase';
+import { safeFetchJson } from './lib/apiHelper';
 import { User } from 'firebase/auth';
 import {
   FileSpreadsheet,
@@ -73,16 +74,13 @@ export default function App() {
     async function loadPreview() {
       if (selectedRevision) return;
       try {
-        const res = await fetch(`/api/law/detail?ocKey=${encodeURIComponent(ocKey)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && isMounted) {
-            setLawData({
-              info: data.info,
-              articles: data.articles,
-              fetchedAt: data.fetchedAt,
-            });
-          }
+        const data = await safeFetchJson<any>(`/api/law/detail?ocKey=${encodeURIComponent(ocKey)}`);
+        if (data.success && isMounted) {
+          setLawData({
+            info: data.info,
+            articles: data.articles,
+            fetchedAt: data.fetchedAt,
+          });
         }
       } catch (err) {
         console.warn('Initial preview load warning:', err);
@@ -99,11 +97,10 @@ export default function App() {
     setSelectedRevision(rev);
     setIsLoadingLawDetail(true);
     try {
-      const res = await fetch(
+      const data = await safeFetchJson<any>(
         `/api/law/detail?ocKey=${encodeURIComponent(ocKey)}&mst=${encodeURIComponent(rev.lawMst)}`
       );
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setLawData({
           info: data.info,
           articles: data.articles,

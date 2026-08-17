@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HskItem, HsExplanatoryItem, HsOpinionItem, UserProfile } from '../types';
 import { getAccessToken } from '../lib/firebase';
+import { safeFetchJson } from '../lib/apiHelper';
 import { HskPreviewModal } from './HskPreviewModal';
 import {
   FileSpreadsheet,
@@ -101,7 +102,7 @@ export function AdmRulesExporter({
         fileBase64 = await fileToBase64(selectedFile);
       }
 
-      const res = await fetch('/api/export-hsk-excel-sheets', {
+      const data = await safeFetchJson<any>('/api/export-hsk-excel-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -111,8 +112,7 @@ export function AdmRulesExporter({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || '구글시트 반영에 실패했습니다.');
       }
 
@@ -135,11 +135,7 @@ export function AdmRulesExporter({
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch('/api/adm-rules/data');
-        if (!res.ok) {
-          throw new Error(`서버 응답 오류 (${res.status})`);
-        }
-        const data = await res.json();
+        const data = await safeFetchJson<any>('/api/adm-rules/data');
         if (data.success) {
           setHskList(data.hskList || []);
           setExpList(data.hsExplanatoryList || []);
@@ -170,14 +166,13 @@ export function AdmRulesExporter({
         accessToken = await getAccessToken();
       }
 
-      const res = await fetch('/api/export-adm-rules-sheets', {
+      const data = await safeFetchJson<any>('/api/export-adm-rules-sheets', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: 'all', accessToken }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || '구글시트 생성에 실패했습니다.');
       }
 

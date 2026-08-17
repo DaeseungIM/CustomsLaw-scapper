@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CustomsActData, ProcessStep, UserProfile, ExportConfig, LawRevisionItem } from '../types';
 import { LawRevisionCombobox } from './LawRevisionCombobox';
+import { safeFetchJson } from '../lib/apiHelper';
 import {
   Sparkles,
   RefreshCw,
@@ -147,12 +148,9 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
     async function loadRecent2() {
       setIsLoadingRecent(true);
       try {
-        const res = await fetch(`/api/law/recent-2-revisions?ocKey=${encodeURIComponent(ocKey)}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (data.success && isMounted && Array.isArray(data.revisions)) {
-            setRecentRevisions(data.revisions);
-          }
+        const data = await safeFetchJson<any>(`/api/law/recent-2-revisions?ocKey=${encodeURIComponent(ocKey)}`);
+        if (data.success && isMounted && Array.isArray(data.revisions)) {
+          setRecentRevisions(data.revisions);
         }
       } catch (err) {
         console.warn('Failed to load recent 2 revisions:', err);
@@ -220,7 +218,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
       const folderName = customDriveFolderName.trim() || `${lawName}_${new Date().toISOString().slice(0, 10)}`;
       const limitCount = revisionScopeOption === 'all' ? 0 : parseInt(revisionScopeOption, 10);
 
-      const res = await fetch('/api/drive/export-all-revisions-folder', {
+      const data = await safeFetchJson<any>('/api/drive/export-all-revisions-folder', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -234,8 +232,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         if (data.authError) {
           throw new Error(data.error || 'Google 계정 인증이 만료되었습니다. 상단 [Google 로그인]을 눌러 다시 로그인해 주세요.');
         }
@@ -328,7 +325,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
         throw new Error('Google OAuth 인증 토큰을 획득하지 못했습니다. 상단의 Google 계정 연결 버튼을 눌러 로그인해 주세요.');
       }
 
-      const res = await fetch('/api/sheets/save-recent-2-test', {
+      const data = await safeFetchJson<any>('/api/sheets/save-recent-2-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -337,8 +334,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
         }),
       });
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || '최근 2개 개정본 테스트 저장 실패');
       }
 
@@ -384,7 +380,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
 
       updateStep('4', 'running', '관세법 전부개정(1967년, 2000년) 조문제목 변천사 및 전부개정 대조 구글시트 생성 중...');
 
-      const res = await fetch('/api/sheets/save-wholly-amended-comparison', {
+      const data = await safeFetchJson<any>('/api/sheets/save-wholly-amended-comparison', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -392,11 +388,6 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
           ocKey,
         }),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || '전부개정 구글시트 생성 실패');
-      }
 
       setCreatedSheetUrl(data.spreadsheetUrl);
       updateStep('4', 'success', data.message || '전부개정 구글시트 생성 완료!');
@@ -433,10 +424,9 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
         ? `/api/law/detail?ocKey=${encodeURIComponent(ocKey)}&mst=${encodeURIComponent(targetMst)}`
         : `/api/law/detail?ocKey=${encodeURIComponent(ocKey)}`;
 
-      const detailRes = await fetch(detailUrl);
-      const detailData = await detailRes.json();
+      const detailData = await safeFetchJson<any>(detailUrl);
 
-      if (!detailRes.ok || !detailData.success) {
+      if (!detailData.success) {
         throw new Error(detailData.error || '관세법 상세 조문 수집 실패');
       }
 
@@ -473,7 +463,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
 
       // Export to Google Sheets
       updateStep('4', 'running', 'Google Sheets에 관세법 조문 기록 중...');
-      const saveRes = await fetch('/api/sheets/save', {
+      const saveData = await safeFetchJson<any>('/api/sheets/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -484,9 +474,7 @@ export const LawFetcher: React.FC<LawFetcherProps> = ({
         }),
       });
 
-      const saveData = await saveRes.json();
-
-      if (!saveRes.ok || !saveData.success) {
+      if (!saveData.success) {
         throw new Error(saveData.error || 'Google Sheets 저장 실패');
       }
 

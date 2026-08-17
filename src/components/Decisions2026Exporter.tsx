@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { DecisionItem, UserProfile } from '../types';
 import { getAccessToken } from '../lib/firebase';
+import { safeFetchJson } from '../lib/apiHelper';
 import { DecisionStatsPanel } from './DecisionStatsPanel';
 import {
   FileSpreadsheet,
@@ -81,15 +82,14 @@ export function Decisions2026Exporter({
     setIsSearching(true);
     setStatusMessage(null);
     try {
-      const res = await fetch(
+      const data = await safeFetchJson<any>(
         `/api/decisions/search?ocKey=${encodeURIComponent(
           ocKey
         )}&targetType=${encodeURIComponent(targetType)}&query=${encodeURIComponent(
           query
         )}&year=${selectedYear}&stDt=${encodeURIComponent(stDt)}&edDt=${encodeURIComponent(edDt)}`
       );
-      const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setDecisions(data.decisions || []);
         setCountsByYear(data.countsByYear || {});
       } else {
@@ -102,7 +102,7 @@ export function Decisions2026Exporter({
       console.error('Failed to search decisions:', err);
       setStatusMessage({
         type: 'error',
-        text: '서버와 통신 중 오류가 발생했습니다.',
+        text: err.message || '서버와 통신 중 오류가 발생했습니다.',
       });
     } finally {
       setIsSearching(false);
